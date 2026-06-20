@@ -23,14 +23,16 @@ export function monthlyTotals(
   return { income, expense };
 }
 
-// Pengeluaran dikelompokkan per kategori untuk satu bulan (dipakai di Laporan).
-export function expenseByCategory(
+// Pemasukan/pengeluaran dikelompokkan per kategori untuk satu bulan (dipakai di Laporan).
+// Diurutkan dari nominal terbesar.
+export function totalsByCategory(
   txs: Transaction[],
   ref: Date,
+  type: 'Income' | 'Expense',
 ): { categoryId: string | null; total: number }[] {
   const map = new Map<string | null, number>();
   for (const t of txs) {
-    if (t.transaction_type !== 'Expense') continue;
+    if (t.transaction_type !== type) continue;
     if (!isSameMonth(t.transaction_date, ref)) continue;
     map.set(t.category_id, (map.get(t.category_id) ?? 0) + Number(t.amount));
   }
