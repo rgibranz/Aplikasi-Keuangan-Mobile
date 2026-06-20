@@ -10,19 +10,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../../lib/auth';
 import { getWallets } from '../../../lib/wallets';
 import { getCategories } from '../../../lib/categories';
 import { getTransactions } from '../../../lib/transactions';
 import { formatRupiah, monthYearLabel } from '../../../lib/format';
 import { monthlyTotals } from '../../../lib/stats';
-import { colors } from '../../../lib/theme';
+import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
 import { TransactionItem } from '../../../components/TransactionItem';
 import type { Category, Transaction, Wallet } from '../../../lib/types';
 
 export default function Home() {
   const { session, signOut } = useAuth();
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletMap, setWalletMap] = useState<Record<string, Wallet>>({});
@@ -60,80 +63,88 @@ export default function Home() {
   const { income, expense } = monthlyTotals(transactions, now);
   const recent = transactions.slice(0, 5);
   const email = session?.user.email ?? '';
+  const firstName = email.split('@')[0];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>Halo, {firstName} 👋</Text>
+          <Text style={styles.date}>{monthYearLabel(now)}</Text>
+        </View>
+        <Pressable onPress={signOut} style={styles.signOut}>
+          <Feather name="log-out" size={16} color={colors.muted} />
+        </Pressable>
+      </View>
       <ScrollView
+        style={styles.scrollView}
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={loading} onRefresh={load} />
+          <RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />
         }
       >
-        <View style={styles.header}>
-          <View style={styles.headerText}>
-            <Text style={styles.hi}>Halo,</Text>
-            <Text style={styles.email} numberOfLines={1}>
-              {email}
-            </Text>
-          </View>
-          <Pressable onPress={signOut} style={styles.signOut}>
-            <Text style={styles.signOutText}>Keluar</Text>
-          </Pressable>
-        </View>
-
+        {/* Balance Hero Card */}
         <View style={styles.balanceCard}>
+          <View style={styles.balanceDecorL} />
+          <View style={styles.balanceDecorR} />
           <Text style={styles.balanceLabel}>Total Saldo</Text>
           <Text style={styles.balanceValue}>{formatRupiah(total)}</Text>
           <Text style={styles.balanceHint}>
-            {wallets.length === 0 ? 'Belum ada dompet' : `${wallets.length} dompet`}
+            {wallets.length === 0 ? 'Belum ada dompet' : `dari ${wallets.length} dompet`}
           </Text>
         </View>
 
+        {/* Monthly Summary */}
         <View style={styles.monthCard}>
-          <Text style={styles.monthLabel}>{monthYearLabel(now)}</Text>
-          <View style={styles.monthRow}>
-            <View style={styles.monthCol}>
-              <Text style={styles.monthCaption}>Pemasukan</Text>
-              <Text style={[styles.monthValue, { color: colors.primary }]}>
-                {formatRupiah(income)}
-              </Text>
-            </View>
-            <View style={styles.monthDivider} />
-            <View style={styles.monthCol}>
-              <Text style={styles.monthCaption}>Pengeluaran</Text>
-              <Text style={[styles.monthValue, { color: colors.danger }]}>
-                {formatRupiah(expense)}
-              </Text>
-            </View>
+          <View style={styles.monthCol}>
+            <Text style={styles.monthCaption}>Pemasukan</Text>
+            <Text style={[styles.monthValue, { color: colors.income }]}>
+              +{formatRupiah(income)}
+            </Text>
+          </View>
+          <View style={styles.monthDivider} />
+          <View style={styles.monthCol}>
+            <Text style={styles.monthCaption}>Pengeluaran</Text>
+            <Text style={[styles.monthValue, { color: colors.danger }]}>
+              -{formatRupiah(expense)}
+            </Text>
           </View>
         </View>
 
+        {/* Quick Actions */}
         <View style={styles.quickRow}>
           <Pressable
             style={styles.quickCard}
             onPress={() => router.push('/transaction-form')}
           >
-            <Text style={styles.quickEmoji}>➕</Text>
+            <View style={styles.quickIcon}>
+              <Feather name="plus" size={20} color={colors.primary} />
+            </View>
             <Text style={styles.quickText}>Catat</Text>
           </Pressable>
           <Pressable
             style={styles.quickCard}
             onPress={() => router.push('/categories')}
           >
-            <Text style={styles.quickEmoji}>🏷️</Text>
+            <View style={styles.quickIcon}>
+              <Feather name="tag" size={20} color={colors.primary} />
+            </View>
             <Text style={styles.quickText}>Kategori</Text>
           </Pressable>
           <Pressable
             style={styles.quickCard}
             onPress={() => router.push('/wallets')}
           >
-            <Text style={styles.quickEmoji}>👛</Text>
+            <View style={styles.quickIcon}>
+              <Feather name="briefcase" size={20} color={colors.primary} />
+            </View>
             <Text style={styles.quickText}>Dompet</Text>
           </Pressable>
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
+        {/* Recent Transactions */}
         <View style={styles.sectionRow}>
           <Text style={styles.sectionTitle}>Transaksi terbaru</Text>
           <Pressable onPress={() => router.push('/transactions')}>
@@ -145,6 +156,7 @@ export default function Home() {
           <ActivityIndicator color={colors.primary} style={{ marginTop: 12 }} />
         ) : recent.length === 0 ? (
           <View style={styles.emptyCard}>
+            <Feather name="inbox" size={32} color={colors.muted} />
             <Text style={styles.emptyTitle}>Belum ada transaksi</Text>
             <Text style={styles.emptyText}>
               Mulai catat pemasukan & pengeluaranmu.
@@ -153,7 +165,7 @@ export default function Home() {
               style={styles.emptyBtn}
               onPress={() => router.push('/transaction-form')}
             >
-              <Text style={styles.emptyBtnText}>Catat Transaksi</Text>
+              <Text style={styles.emptyBtnText}>Catat Sekarang</Text>
             </Pressable>
           </View>
         ) : (
@@ -179,93 +191,136 @@ export default function Home() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  container: { padding: 20, gap: 16 },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  headerText: { flex: 1, marginRight: 12 },
-  hi: { fontSize: 14, color: colors.muted },
-  email: { fontSize: 18, fontWeight: '700', color: colors.text },
-  signOut: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  signOutText: { color: colors.danger, fontWeight: '600', fontSize: 13 },
-  balanceCard: { backgroundColor: colors.primary, borderRadius: 20, padding: 24 },
-  balanceLabel: {
-    color: 'rgba(255,255,255,0.85)',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  balanceValue: { color: '#fff', fontSize: 34, fontWeight: '800', marginTop: 8 },
-  balanceHint: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4 },
-  monthCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  monthLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.muted,
-    marginBottom: 14,
-  },
-  monthRow: { flexDirection: 'row', alignItems: 'center' },
-  monthCol: { flex: 1, alignItems: 'center', gap: 4 },
-  monthCaption: { fontSize: 12, color: colors.muted, fontWeight: '600' },
-  monthValue: { fontSize: 18, fontWeight: '800' },
-  monthDivider: { width: 1, height: 36, backgroundColor: colors.border },
-  quickRow: { flexDirection: 'row', gap: 12 },
-  quickCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 16,
-    alignItems: 'center',
-    gap: 6,
-  },
-  quickEmoji: { fontSize: 22 },
-  quickText: { fontSize: 12, fontWeight: '700', color: colors.text },
-  error: { color: colors.danger, fontSize: 13 },
-  sectionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  link: { fontSize: 14, fontWeight: '700', color: colors.primary },
-  recentList: { gap: 10 },
-  emptyCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    gap: 8,
-  },
-  emptyTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center' },
-  emptyBtn: {
-    marginTop: 8,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-  },
-  emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-});
+function getStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.surface },
+    scrollView: { flex: 1, backgroundColor: c.background },
+    container: { padding: 20, gap: 14 },
+
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingTop: 12,
+      paddingBottom: 12,
+    },
+    greeting: { fontSize: 20, fontWeight: '800', color: c.text, fontFamily: F.b },
+    date: { fontSize: 13, color: c.muted, marginTop: 2, fontFamily: F.r },
+    signOut: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+
+    balanceCard: {
+      backgroundColor: c.primary,
+      borderRadius: 22,
+      padding: 26,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    balanceDecorL: {
+      position: 'absolute',
+      top: -40,
+      left: -40,
+      width: 140,
+      height: 140,
+      borderRadius: 70,
+      backgroundColor: 'rgba(255,255,255,0.06)',
+    },
+    balanceDecorR: {
+      position: 'absolute',
+      bottom: -30,
+      right: -20,
+      width: 110,
+      height: 110,
+      borderRadius: 55,
+      backgroundColor: 'rgba(255,255,255,0.06)',
+    },
+    balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '600', fontFamily: F.sb },
+    balanceValue: {
+      color: '#fff',
+      fontSize: 36,
+      fontWeight: '800',
+      marginTop: 8,
+      letterSpacing: -0.5,
+      fontFamily: F.b,
+    },
+    balanceHint: { color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 6, fontFamily: F.r },
+
+    monthCard: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      paddingVertical: 18,
+      paddingHorizontal: 20,
+      borderWidth: 1,
+      borderColor: c.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    monthCol: { flex: 1, alignItems: 'center', gap: 5 },
+    monthCaption: { fontSize: 12, color: c.muted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: F.sb },
+    monthValue: { fontSize: 17, fontWeight: '800', fontFamily: F.b },
+    monthDivider: { width: 1, height: 36, backgroundColor: c.border },
+
+    quickRow: { flexDirection: 'row', gap: 10 },
+    quickCard: {
+      flex: 1,
+      backgroundColor: c.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingVertical: 16,
+      alignItems: 'center',
+      gap: 8,
+    },
+    quickIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    quickText: { fontSize: 12, fontWeight: '700', color: c.text, fontFamily: F.b },
+
+    error: { color: c.danger, fontSize: 13, fontFamily: F.r },
+
+    sectionRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 6,
+    },
+    sectionTitle: { fontSize: 16, fontWeight: '800', color: c.text, fontFamily: F.b },
+    link: { fontSize: 13, fontWeight: '700', color: c.primary, fontFamily: F.b },
+
+    recentList: { gap: 10 },
+
+    emptyCard: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      padding: 24,
+      borderWidth: 1,
+      borderColor: c.border,
+      alignItems: 'center',
+      gap: 8,
+    },
+    emptyTitle: { fontSize: 15, fontWeight: '700', color: c.text, marginTop: 4, fontFamily: F.b },
+    emptyText: { fontSize: 13, color: c.muted, textAlign: 'center', fontFamily: F.r },
+    emptyBtn: {
+      marginTop: 6,
+      backgroundColor: c.primary,
+      borderRadius: 10,
+      paddingHorizontal: 20,
+      paddingVertical: 11,
+    },
+    emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14, fontFamily: F.b },
+  });
+}

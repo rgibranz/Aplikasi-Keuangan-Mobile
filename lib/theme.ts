@@ -1,11 +1,13 @@
-// Palet warna dasar aplikasi. Dipakai konsisten di semua layar.
+// Static light-mode colors — use useThemeColors() from ThemeProvider for dark mode support
 export const colors = {
-  primary: '#059669', // emerald-600
-  primaryDark: '#047857',
-  background: '#F8FAFC',
-  card: '#FFFFFF',
-  text: '#0F172A',
-  muted: '#64748B',
-  border: '#E2E8F0',
-  danger: '#DC2626',
+  primary:     '#C2410C',
+  primaryDark: '#9A3412',
+  background:  '#FAF7F2',
+  card:        '#FFFFFF',
+  surface:     '#F5EFE6',
+  text:        '#1C1917',
+  muted:       '#78716C',
+  border:      '#E7DDD0',
+  danger:      '#DC2626',
+  income:      '#15803D',
 };

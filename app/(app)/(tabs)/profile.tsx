@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -15,16 +15,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Constants from 'expo-constants';
+import { Feather } from '@expo/vector-icons';
 import { useAuth } from '../../../lib/auth';
 import { getWallets } from '../../../lib/wallets';
 import { getCategories } from '../../../lib/categories';
 import { getTransactions } from '../../../lib/transactions';
 import { formatDateShort } from '../../../lib/format';
-import { colors } from '../../../lib/theme';
+import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
 
 export default function ProfileScreen() {
   const { session, signOut, updatePassword } = useAuth();
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [counts, setCounts] = useState({ wallets: 0, transactions: 0, categories: 0 });
   const [pwVisible, setPwVisible] = useState(false);
 
@@ -61,46 +64,53 @@ export default function ProfileScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.header}>
         <Text style={styles.title}>Profil</Text>
-
+      </View>
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.container}>
+        {/* Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
-          <Text style={styles.email} numberOfLines={1}>
-            {email}
-          </Text>
-          {createdAt ? (
-            <Text style={styles.member}>Bergabung {formatDateShort(createdAt)}</Text>
-          ) : null}
+          <View style={styles.profileInfo}>
+            <Text style={styles.email} numberOfLines={1}>{email}</Text>
+            {createdAt ? (
+              <Text style={styles.member}>Bergabung {formatDateShort(createdAt)}</Text>
+            ) : null}
+          </View>
         </View>
 
+        {/* Stats */}
         <View style={styles.statsRow}>
-          <Stat label="Dompet" value={counts.wallets} />
-          <Stat label="Transaksi" value={counts.transactions} />
-          <Stat label="Kategori" value={counts.categories} />
+          <Stat label="Dompet" value={counts.wallets} colors={colors} />
+          <Stat label="Transaksi" value={counts.transactions} colors={colors} />
+          <Stat label="Kategori" value={counts.categories} colors={colors} />
         </View>
 
+        {/* Menu */}
         <View style={styles.menu}>
           <MenuItem
-            emoji="🏷️"
+            icon="tag"
             label="Kelola Kategori"
             onPress={() => router.push('/categories')}
+            colors={colors}
           />
           <View style={styles.menuDivider} />
           <MenuItem
-            emoji="🔑"
+            icon="lock"
             label="Ganti Password"
             onPress={() => setPwVisible(true)}
+            colors={colors}
           />
         </View>
 
         <Pressable style={styles.signOutBtn} onPress={confirmSignOut}>
-          <Text style={styles.signOutText}>Keluar</Text>
+          <Feather name="log-out" size={16} color={colors.danger} />
+          <Text style={styles.signOutText}>Keluar dari akun</Text>
         </Pressable>
 
-        <Text style={styles.version}>AplikasiKeuangan v{version}</Text>
+        <Text style={styles.version}>v{version}</Text>
       </ScrollView>
 
       <ChangePasswordModal
@@ -112,7 +122,8 @@ export default function ProfileScreen() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+function Stat({ label, value, colors }: { label: string; value: number; colors: AppColors }) {
+  const styles = getStyles(colors);
   return (
     <View style={styles.statCard}>
       <Text style={styles.statValue}>{value}</Text>
@@ -122,19 +133,24 @@ function Stat({ label, value }: { label: string; value: number }) {
 }
 
 function MenuItem({
-  emoji,
+  icon,
   label,
   onPress,
+  colors,
 }: {
-  emoji: string;
+  icon: React.ComponentProps<typeof Feather>['name'];
   label: string;
   onPress: () => void;
+  colors: AppColors;
 }) {
+  const styles = getStyles(colors);
   return (
     <Pressable style={styles.menuItem} onPress={onPress}>
-      <Text style={styles.menuEmoji}>{emoji}</Text>
+      <View style={styles.menuIconWrap}>
+        <Feather name={icon} size={18} color={colors.primary} />
+      </View>
       <Text style={styles.menuLabel}>{label}</Text>
-      <Text style={styles.menuArrow}>›</Text>
+      <Feather name="chevron-right" size={18} color={colors.muted} />
     </Pressable>
   );
 }
@@ -148,6 +164,8 @@ function ChangePasswordModal({
   onClose: () => void;
   onSubmit: (password: string) => Promise<{ error: string | null }>;
 }) {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [pw, setPw] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
@@ -230,117 +248,128 @@ function ChangePasswordModal({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  container: { padding: 20, gap: 18 },
-  title: { fontSize: 26, fontWeight: '800', color: colors.text, marginTop: 4 },
-  profileCard: {
-    backgroundColor: colors.card,
-    borderRadius: 18,
-    padding: 24,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    gap: 8,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { color: '#fff', fontSize: 30, fontWeight: '800' },
-  email: { fontSize: 16, fontWeight: '700', color: colors.text },
-  member: { fontSize: 13, color: colors.muted },
-  statsRow: { flexDirection: 'row', gap: 12 },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 16,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statValue: { fontSize: 22, fontWeight: '800', color: colors.text },
-  statLabel: { fontSize: 12, color: colors.muted, fontWeight: '600' },
-  menu: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    overflow: 'hidden',
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-  },
-  menuEmoji: { fontSize: 20 },
-  menuLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
-  menuArrow: { fontSize: 22, color: colors.muted, fontWeight: '700' },
-  menuDivider: { height: 1, backgroundColor: colors.border, marginLeft: 52 },
-  signOutBtn: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingVertical: 16,
-    alignItems: 'center',
-  },
-  signOutText: { color: colors.danger, fontSize: 15, fontWeight: '700' },
-  version: { textAlign: 'center', color: colors.muted, fontSize: 12 },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  modalSheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 32,
-  },
-  modalHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: 16,
-  },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 6,
-    marginTop: 16,
-  },
-  input: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
-  },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  modalBtn: { flex: 1, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
-  modalCancel: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalCancelText: { color: colors.text, fontWeight: '700', fontSize: 15 },
-  modalSave: { backgroundColor: colors.primary },
-  modalSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-});
+function getStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.surface },
+    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10 },
+    scroll: { flex: 1, backgroundColor: c.background },
+    container: { padding: 20, gap: 14 },
+    title: { fontSize: 26, fontWeight: '800', color: c.text, fontFamily: F.b },
+
+    profileCard: {
+      backgroundColor: c.card,
+      borderRadius: 18,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: c.border,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 16,
+    },
+    avatar: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      backgroundColor: c.primary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarText: { color: '#fff', fontSize: 24, fontWeight: '800', fontFamily: F.b },
+    profileInfo: { flex: 1 },
+    email: { fontSize: 15, fontWeight: '700', color: c.text, fontFamily: F.b },
+    member: { fontSize: 12, color: c.muted, marginTop: 3, fontFamily: F.r },
+
+    statsRow: { flexDirection: 'row', gap: 10 },
+    statCard: {
+      flex: 1,
+      backgroundColor: c.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingVertical: 16,
+      alignItems: 'center',
+      gap: 4,
+    },
+    statValue: { fontSize: 22, fontWeight: '800', color: c.text, fontFamily: F.b },
+    statLabel: { fontSize: 11, color: c.muted, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.3, fontFamily: F.sb },
+
+    menu: {
+      backgroundColor: c.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.border,
+      overflow: 'hidden',
+    },
+    menuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      paddingHorizontal: 18,
+      paddingVertical: 16,
+    },
+    menuIconWrap: {
+      width: 34,
+      height: 34,
+      borderRadius: 10,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    menuLabel: { flex: 1, fontSize: 15, fontWeight: '600', color: c.text, fontFamily: F.sb },
+    menuDivider: { height: 1, backgroundColor: c.border, marginLeft: 66 },
+
+    signOutBtn: {
+      backgroundColor: c.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      paddingVertical: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+    },
+    signOutText: { color: c.danger, fontSize: 15, fontWeight: '700', fontFamily: F.b },
+    version: { textAlign: 'center', color: c.muted, fontSize: 12, fontFamily: F.r },
+
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.35)',
+    },
+    modalSheet: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 36,
+    },
+    modalHandle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.border,
+      marginBottom: 18,
+    },
+    modalTitle: { fontSize: 20, fontWeight: '800', color: c.text, fontFamily: F.b },
+    label: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 6, marginTop: 16, fontFamily: F.sb },
+    input: {
+      backgroundColor: c.surface,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      fontSize: 16,
+      color: c.text,
+      fontFamily: F.r,
+    },
+    modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
+    modalBtn: { flex: 1, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
+    modalCancel: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },
+    modalCancelText: { color: c.text, fontWeight: '700', fontSize: 15, fontFamily: F.b },
+    modalSave: { backgroundColor: c.primary },
+    modalSaveText: { color: '#fff', fontWeight: '700', fontSize: 15, fontFamily: F.b },
+  });
+}

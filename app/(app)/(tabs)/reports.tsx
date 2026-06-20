@@ -10,11 +10,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { getTransactions } from '../../../lib/transactions';
 import { getCategories } from '../../../lib/categories';
 import { formatRupiah, monthYearLabel } from '../../../lib/format';
 import { monthlyTotals, totalsByCategory } from '../../../lib/stats';
-import { colors } from '../../../lib/theme';
+import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
 import type { Category, Transaction } from '../../../lib/types';
 
 type ReportType = 'Expense' | 'Income';
@@ -25,6 +26,8 @@ function firstOfThisMonth(): Date {
 }
 
 export default function ReportsScreen() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [catMap, setCatMap] = useState<Record<string, Category>>({});
   const [loading, setLoading] = useState(true);
@@ -37,7 +40,7 @@ export default function ReportsScreen() {
       setTransactions(tx);
       setCatMap(Object.fromEntries(cats.map((c) => [c.id, c])));
     } catch {
-      // diabaikan; layar tetap menampilkan data kosong
+      // diabaikan
     } finally {
       setLoading(false);
     }
@@ -73,47 +76,50 @@ export default function ReportsScreen() {
 
       <View style={styles.monthNav}>
         <Pressable onPress={() => changeMonth(-1)} style={styles.navBtn} hitSlop={10}>
-          <Text style={styles.navArrow}>‹</Text>
+          <Feather name="chevron-left" size={18} color={colors.text} />
         </Pressable>
         <Text style={styles.monthText}>{monthYearLabel(ref)}</Text>
         <Pressable onPress={() => changeMonth(1)} style={styles.navBtn} hitSlop={10}>
-          <Text style={styles.navArrow}>›</Text>
+          <Feather name="chevron-right" size={18} color={colors.text} />
         </Pressable>
       </View>
 
-      {loading && transactions.length === 0 ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-      ) : (
-        <ScrollView contentContainerStyle={styles.container}>
+      <View style={styles.scrollArea}>
+        {loading && transactions.length === 0 ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+        ) : (
+          <ScrollView contentContainerStyle={styles.container}>
+          {/* Summary Card */}
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <View style={styles.summaryCol}>
                 <Text style={styles.summaryCaption}>Pemasukan</Text>
-                <Text style={[styles.summaryValue, { color: colors.primary }]}>
-                  {formatRupiah(income)}
+                <Text style={[styles.summaryValue, { color: colors.income }]}>
+                  +{formatRupiah(income)}
                 </Text>
               </View>
               <View style={styles.summaryDivider} />
               <View style={styles.summaryCol}>
                 <Text style={styles.summaryCaption}>Pengeluaran</Text>
                 <Text style={[styles.summaryValue, { color: colors.danger }]}>
-                  {formatRupiah(expense)}
+                  -{formatRupiah(expense)}
                 </Text>
               </View>
             </View>
             <View style={styles.netRow}>
-              <Text style={styles.netLabel}>Selisih</Text>
+              <Text style={styles.netLabel}>Selisih bulan ini</Text>
               <Text
                 style={[
                   styles.netValue,
-                  { color: net >= 0 ? colors.primary : colors.danger },
+                  { color: net >= 0 ? colors.income : colors.danger },
                 ]}
               >
-                {formatRupiah(net)}
+                {net >= 0 ? '+' : ''}{formatRupiah(net)}
               </Text>
             </View>
           </View>
 
+          {/* Toggle */}
           <View style={styles.toggleRow}>
             {(['Expense', 'Income'] as ReportType[]).map((tp) => (
               <Pressable
@@ -137,10 +143,9 @@ export default function ReportsScreen() {
 
           {breakdown.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>📊</Text>
+              <Feather name="bar-chart-2" size={44} color={colors.muted} />
               <Text style={styles.emptyText}>
-                Belum ada {type === 'Expense' ? 'pengeluaran' : 'pemasukan'} di
-                bulan ini.
+                Belum ada {type === 'Expense' ? 'pengeluaran' : 'pemasukan'} di bulan ini.
               </Text>
             </View>
           ) : (
@@ -155,7 +160,10 @@ export default function ReportsScreen() {
                     <Text style={styles.catName} numberOfLines={1}>
                       {`${cat?.icon_name ?? '🏷️'} ${cat?.category_name ?? 'Tanpa kategori'}`}
                     </Text>
-                    <Text style={styles.catAmount}>{formatRupiah(b.total)}</Text>
+                    <View style={styles.catRight}>
+                      <Text style={styles.catPct}>{pct}%</Text>
+                      <Text style={styles.catAmount}>{formatRupiah(b.total)}</Text>
+                    </View>
                   </View>
                   <View style={styles.barTrack}>
                     <View
@@ -168,114 +176,118 @@ export default function ReportsScreen() {
                       ]}
                     />
                   </View>
-                  <Text style={styles.catPct}>{pct}% dari total</Text>
                 </View>
               );
             })
           )}
-        </ScrollView>
-      )}
+          </ScrollView>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
-  title: { fontSize: 26, fontWeight: '800', color: colors.text },
-  monthNav: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 24,
-    paddingVertical: 10,
-  },
-  navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  navArrow: { fontSize: 22, fontWeight: '800', color: colors.text, lineHeight: 26 },
-  monthText: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: colors.text,
-    minWidth: 130,
-    textAlign: 'center',
-  },
-  container: { padding: 20, paddingBottom: 40, gap: 16 },
-  summaryCard: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  summaryRow: { flexDirection: 'row', alignItems: 'center' },
-  summaryCol: { flex: 1, alignItems: 'center', gap: 4 },
-  summaryCaption: { fontSize: 12, color: colors.muted, fontWeight: '600' },
-  summaryValue: { fontSize: 17, fontWeight: '800' },
-  summaryDivider: { width: 1, height: 36, backgroundColor: colors.border },
-  netRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 16,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  netLabel: { fontSize: 14, fontWeight: '700', color: colors.text },
-  netValue: { fontSize: 18, fontWeight: '800' },
-  toggleRow: { flexDirection: 'row', gap: 10 },
-  toggleChip: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-  },
-  toggleChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  toggleText: { fontSize: 14, fontWeight: '700', color: colors.text },
-  toggleTextActive: { color: '#fff' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  empty: { alignItems: 'center', paddingVertical: 40, gap: 8 },
-  emptyEmoji: { fontSize: 44 },
-  emptyText: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-    paddingHorizontal: 30,
-  },
-  catRow: {
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 8,
-  },
-  catTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-  catName: { flex: 1, fontSize: 14, fontWeight: '700', color: colors.text },
-  catAmount: { fontSize: 14, fontWeight: '800', color: colors.text },
-  barTrack: {
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  },
-  barFill: { height: 8, borderRadius: 4 },
-  catPct: { fontSize: 11, color: colors.muted, fontWeight: '600' },
-});
+function getStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.surface },
+    scrollArea: { flex: 1, backgroundColor: c.background },
+    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
+    title: { fontSize: 26, fontWeight: '800', color: c.text, fontFamily: F.b },
+    monthNav: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 20,
+      paddingVertical: 10,
+    },
+    navBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    monthText: {
+      fontSize: 15,
+      fontWeight: '800',
+      color: c.text,
+      minWidth: 130,
+      textAlign: 'center',
+      fontFamily: F.b,
+    },
+    container: { padding: 20, paddingBottom: 40, gap: 14 },
+    summaryCard: {
+      backgroundColor: c.card,
+      borderRadius: 18,
+      padding: 20,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    summaryRow: { flexDirection: 'row', alignItems: 'center' },
+    summaryCol: { flex: 1, alignItems: 'center', gap: 5 },
+    summaryCaption: { fontSize: 11, color: c.muted, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, fontFamily: F.b },
+    summaryValue: { fontSize: 17, fontWeight: '800', fontFamily: F.b },
+    summaryDivider: { width: 1, height: 36, backgroundColor: c.border },
+    netRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 16,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    netLabel: { fontSize: 13, fontWeight: '600', color: c.muted, fontFamily: F.sb },
+    netValue: { fontSize: 17, fontWeight: '800', fontFamily: F.b },
+    toggleRow: { flexDirection: 'row', gap: 10 },
+    toggleChip: {
+      flex: 1,
+      paddingVertical: 11,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+    },
+    toggleChipActive: { backgroundColor: c.primary, borderColor: c.primary },
+    toggleText: { fontSize: 14, fontWeight: '700', color: c.text, fontFamily: F.b },
+    toggleTextActive: { color: '#fff', fontFamily: F.b },
+    sectionTitle: { fontSize: 15, fontWeight: '800', color: c.text, fontFamily: F.b },
+    empty: { alignItems: 'center', paddingVertical: 40, gap: 10 },
+    emptyText: {
+      fontSize: 13,
+      color: c.muted,
+      textAlign: 'center',
+      paddingHorizontal: 30,
+      fontFamily: F.r,
+    },
+    catRow: {
+      backgroundColor: c.card,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      gap: 10,
+    },
+    catTop: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 8,
+    },
+    catName: { flex: 1, fontSize: 14, fontWeight: '700', color: c.text, fontFamily: F.b },
+    catRight: { alignItems: 'flex-end', gap: 2 },
+    catPct: { fontSize: 11, color: c.muted, fontWeight: '600', fontFamily: F.sb },
+    catAmount: { fontSize: 14, fontWeight: '800', color: c.text, fontFamily: F.b },
+    barTrack: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: c.surface,
+      overflow: 'hidden',
+    },
+    barFill: { height: 6, borderRadius: 3 },
+  });
+}

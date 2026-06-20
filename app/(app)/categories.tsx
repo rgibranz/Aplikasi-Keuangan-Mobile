@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { Feather } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
@@ -21,8 +22,27 @@ import {
   getCategories,
   type CategoryType,
 } from '../../lib/categories';
-import { colors } from '../../lib/theme';
+import { useThemeColors, type AppColors } from '../../lib/ThemeProvider';
 import type { Category } from '../../lib/types';
+
+type TemplateCategory = { name: string; icon: string; color: string; type: CategoryType };
+
+const CATEGORY_TEMPLATES: TemplateCategory[] = [
+  { name: 'Makan & Minum', icon: '🍔', color: '#D97706', type: 'Expense' },
+  { name: 'Transport',      icon: '🚗', color: '#2563EB', type: 'Expense' },
+  { name: 'Belanja',        icon: '🛒', color: '#7C3AED', type: 'Expense' },
+  { name: 'Internet',       icon: '🌐', color: '#0891B2', type: 'Expense' },
+  { name: 'Keluarga',       icon: '👪', color: '#059669', type: 'Expense' },
+  { name: 'Rumah',          icon: '🏠', color: '#EA580C', type: 'Expense' },
+  { name: 'Jajan',          icon: '☕', color: '#DB2777', type: 'Expense' },
+  { name: 'Sedekah',        icon: '🤲', color: '#059669', type: 'Expense' },
+  { name: 'Skin & Body Care', icon: '✨', color: '#DB2777', type: 'Expense' },
+  { name: 'Hiburan',        icon: '🎬', color: '#7C3AED', type: 'Expense' },
+  { name: 'Hadiah',         icon: '🎁', color: '#EA580C', type: 'Expense' },
+  { name: 'Kesehatan',      icon: '💊', color: '#DC2626', type: 'Expense' },
+  { name: 'Rokok',          icon: '🚬', color: '#475569', type: 'Expense' },
+  { name: 'Lainnya',        icon: '📦', color: '#475569', type: 'Expense' },
+];
 
 const EMOJI_PRESETS = [
   '🍔', '🛒', '🚗', '🏠', '💡', '📱', '🎬', '👕', '💊', '🎓',
@@ -39,10 +59,13 @@ const TYPE_LABEL: Record<CategoryType, string> = {
 
 export default function CategoriesScreen() {
   const router = useRouter();
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'All' | CategoryType>('All');
   const [modalVisible, setModalVisible] = useState(false);
+  const [templateVisible, setTemplateVisible] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -89,8 +112,9 @@ export default function CategoriesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.topbar}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.back}>‹ Kembali</Text>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtn}>
+          <Feather name="chevron-left" size={18} color={colors.primary} />
+          <Text style={styles.back}>Kembali</Text>
         </Pressable>
         <Text style={styles.title}>Kategori</Text>
         <View style={{ width: 64 }} />
@@ -126,7 +150,7 @@ export default function CategoriesScreen() {
           refreshing={loading}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>🏷️</Text>
+              <Feather name="tag" size={48} color={colors.muted} />
               <Text style={styles.emptyTitle}>Belum ada kategori</Text>
               <Text style={styles.emptyText}>
                 Tambah kategori untuk mengelompokkan transaksimu.
@@ -173,9 +197,15 @@ export default function CategoriesScreen() {
         />
       )}
 
-      <Pressable style={styles.fab} onPress={() => setModalVisible(true)}>
-        <Text style={styles.fabText}>＋ Tambah Kategori</Text>
-      </Pressable>
+      <View style={styles.fabRow}>
+        <Pressable style={[styles.fab, styles.fabOutline]} onPress={() => setTemplateVisible(true)}>
+          <Feather name="list" size={16} color={colors.primary} />
+          <Text style={styles.fabOutlineText}>Template</Text>
+        </Pressable>
+        <Pressable style={styles.fab} onPress={() => setModalVisible(true)}>
+          <Text style={styles.fabText}>＋ Kustom</Text>
+        </Pressable>
+      </View>
 
       <AddCategoryModal
         visible={modalVisible}
@@ -185,7 +215,103 @@ export default function CategoriesScreen() {
           load();
         }}
       />
+
+      <TemplateModal
+        visible={templateVisible}
+        onClose={() => setTemplateVisible(false)}
+        onAdded={load}
+        existingNames={categories.map((c) => c.category_name)}
+      />
     </SafeAreaView>
+  );
+}
+
+function TemplateModal({
+  visible,
+  onClose,
+  onAdded,
+  existingNames,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onAdded: () => void;
+  existingNames: string[];
+}) {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
+  const [added, setAdded] = useState<Set<string>>(new Set());
+  const [loadingName, setLoadingName] = useState<string | null>(null);
+
+  const existingSet = new Set(existingNames);
+
+  async function handleAdd(t: TemplateCategory) {
+    if (loadingName || added.has(t.name) || existingSet.has(t.name)) return;
+    setLoadingName(t.name);
+    try {
+      await createCategory({
+        category_name: t.name,
+        category_type: t.type,
+        icon_name: t.icon,
+        color_hex: t.color,
+      });
+      setAdded((prev) => new Set([...prev, t.name]));
+      onAdded();
+    } catch (e) {
+      Alert.alert('Gagal', e instanceof Error ? e.message : 'Error');
+    } finally {
+      setLoadingName(null);
+    }
+  }
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalSheet, { maxHeight: '80%' }]}>
+          <View style={styles.modalHandle} />
+          <View style={styles.tmplHeader}>
+            <Text style={styles.modalTitle}>Pilih Template</Text>
+            <Pressable onPress={onClose} hitSlop={8}>
+              <Feather name="x" size={22} color={colors.muted} />
+            </Pressable>
+          </View>
+          <Text style={styles.tmplSubtitle}>Tap untuk langsung menambahkan kategori.</Text>
+          <ScrollView showsVerticalScrollIndicator={false} style={{ marginTop: 12 }}>
+            {CATEGORY_TEMPLATES.map((t) => {
+              const isDone = existingSet.has(t.name) || added.has(t.name);
+              const isLoading = loadingName === t.name;
+              return (
+                <Pressable
+                  key={t.name}
+                  style={[styles.tmplRow, isDone && styles.tmplRowDone]}
+                  onPress={() => handleAdd(t)}
+                  disabled={isDone || !!loadingName}
+                >
+                  <View style={[styles.tmplIconCircle, { backgroundColor: t.color + '22' }]}>
+                    <Text style={styles.tmplIconText}>{t.icon}</Text>
+                  </View>
+                  <Text
+                    style={[styles.tmplRowName, isDone && styles.tmplRowNameDone]}
+                    numberOfLines={1}
+                  >
+                    {t.name}
+                  </Text>
+                  {isLoading ? (
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  ) : isDone ? (
+                    <Feather name="check-circle" size={20} color={colors.primary} />
+                  ) : (
+                    <Feather name="plus-circle" size={20} color={colors.muted} />
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          <Pressable style={styles.tmplDoneBtn} onPress={onClose}>
+            <Text style={styles.tmplDoneBtnText}>Selesai</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -198,6 +324,8 @@ function AddCategoryModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [name, setName] = useState('');
   const [type, setType] = useState<CategoryType>('Expense');
   const [emoji, setEmoji] = useState(EMOJI_PRESETS[0]);
@@ -338,159 +466,212 @@ function AddCategoryModal({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  back: { fontSize: 16, color: colors.primary, fontWeight: '600' },
-  title: { fontSize: 18, fontWeight: '800', color: colors.text },
-  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 8 },
-  filterChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  filterTextActive: { color: '#fff' },
-  list: { padding: 20, paddingBottom: 120, gap: 12 },
-  empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  emptyText: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconEmoji: { fontSize: 20 },
-  cardName: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
-  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  badgeIncome: { backgroundColor: '#DCFCE7' },
-  badgeExpense: { backgroundColor: '#FEE2E2' },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-  badgeTextIncome: { color: '#15803D' },
-  badgeTextExpense: { color: '#B91C1C' },
-  hint: { textAlign: 'center', color: colors.muted, fontSize: 12, marginTop: 12 },
-  fab: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 24,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  fabText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  modalSheet: {
-    backgroundColor: colors.card,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
-    paddingBottom: 28,
-    maxHeight: '88%',
-  },
-  modalHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-    marginBottom: 16,
-  },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: colors.text },
-  previewRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 },
-  previewName: { fontSize: 16, fontWeight: '700', color: colors.text },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 6,
-    marginTop: 16,
-  },
-  input: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    fontSize: 16,
-    color: colors.text,
-  },
-  typeRow: { flexDirection: 'row', gap: 10 },
-  typeChip: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-  },
-  typeChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  typeChipText: { fontSize: 14, fontWeight: '600', color: colors.text },
-  typeChipTextActive: { color: '#fff' },
-  emojiWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  emojiCell: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emojiCellActive: { borderColor: colors.primary, borderWidth: 2 },
-  emojiCellText: { fontSize: 20 },
-  colorWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  colorDot: { width: 36, height: 36, borderRadius: 18 },
-  colorDotActive: { borderWidth: 3, borderColor: colors.text },
-  modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
-  modalBtn: { flex: 1, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
-  modalCancel: {
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalCancelText: { color: colors.text, fontWeight: '700', fontSize: 15 },
-  modalSave: { backgroundColor: colors.primary },
-  modalSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
-});
+function getStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.background },
+    topbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+    },
+    backBtn: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+    back: { fontSize: 16, color: c.primary, fontWeight: '600' },
+    title: { fontSize: 18, fontWeight: '800', color: c.text },
+    filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 8 },
+    filterChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
+    filterChipActive: { backgroundColor: c.primary, borderColor: c.primary },
+    filterText: { fontSize: 13, fontWeight: '600', color: c.text },
+    filterTextActive: { color: '#fff' },
+    list: { padding: 20, paddingBottom: 120, gap: 12 },
+    empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
+    emptyTitle: { fontSize: 16, fontWeight: '700', color: c.text },
+    emptyText: {
+      fontSize: 13,
+      color: c.muted,
+      textAlign: 'center',
+      paddingHorizontal: 40,
+    },
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: c.card,
+      borderRadius: 14,
+      padding: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    iconCircle: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    iconEmoji: { fontSize: 20 },
+    cardName: { flex: 1, fontSize: 15, fontWeight: '700', color: c.text },
+    badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    badgeIncome: { backgroundColor: '#DCFCE7' },
+    badgeExpense: { backgroundColor: '#FEE2E2' },
+    badgeText: { fontSize: 11, fontWeight: '700' },
+    badgeTextIncome: { color: '#15803D' },
+    badgeTextExpense: { color: '#B91C1C' },
+    hint: { textAlign: 'center', color: c.muted, fontSize: 12, marginTop: 12 },
+    fabRow: {
+      position: 'absolute',
+      left: 20,
+      right: 20,
+      bottom: 24,
+      flexDirection: 'row',
+      gap: 10,
+    },
+    fab: {
+      flex: 1,
+      backgroundColor: c.primary,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: 6,
+      shadowColor: '#000',
+      shadowOpacity: 0.12,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 3,
+    },
+    fabOutline: {
+      flex: 0.75,
+      backgroundColor: c.card,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    fabText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+    fabOutlineText: { color: c.primary, fontSize: 15, fontWeight: '700' },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    modalSheet: {
+      backgroundColor: c.card,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      paddingBottom: 28,
+      maxHeight: '88%',
+    },
+    modalHandle: {
+      alignSelf: 'center',
+      width: 40,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: c.border,
+      marginBottom: 16,
+    },
+    modalTitle: { fontSize: 20, fontWeight: '800', color: c.text },
+    // Template modal
+    tmplHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 6,
+    },
+    tmplSubtitle: { fontSize: 13, color: c.muted },
+    tmplRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 13,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    tmplRowDone: { opacity: 0.5 },
+    tmplIconCircle: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    tmplIconText: { fontSize: 20 },
+    tmplRowName: { flex: 1, fontSize: 15, fontWeight: '600', color: c.text },
+    tmplRowNameDone: { color: c.muted },
+    tmplDoneBtn: {
+      marginTop: 14,
+      backgroundColor: c.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    tmplDoneBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+    // Custom category modal
+    previewRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 16 },
+    previewName: { fontSize: 16, fontWeight: '700', color: c.text },
+    label: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+      marginBottom: 6,
+      marginTop: 16,
+    },
+    input: {
+      backgroundColor: c.surface,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 14,
+      fontSize: 16,
+      color: c.text,
+    },
+    typeRow: { flexDirection: 'row', gap: 10 },
+    typeChip: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+    },
+    typeChipActive: { backgroundColor: c.primary, borderColor: c.primary },
+    typeChipText: { fontSize: 14, fontWeight: '600', color: c.text },
+    typeChipTextActive: { color: '#fff' },
+    emojiWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    emojiCell: {
+      width: 44,
+      height: 44,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emojiCellActive: { borderColor: c.primary, borderWidth: 2 },
+    emojiCellText: { fontSize: 20 },
+    colorWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    colorDot: { width: 36, height: 36, borderRadius: 18 },
+    colorDotActive: { borderWidth: 3, borderColor: c.text },
+    modalActions: { flexDirection: 'row', gap: 12, marginTop: 24 },
+    modalBtn: { flex: 1, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
+    modalCancel: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+    },
+    modalCancelText: { color: c.text, fontWeight: '700', fontSize: 15 },
+    modalSave: { backgroundColor: c.primary },
+    modalSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  });
+}

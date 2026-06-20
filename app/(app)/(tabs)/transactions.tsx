@@ -10,11 +10,12 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { deleteTransaction, getTransactions } from '../../../lib/transactions';
 import { getWallets } from '../../../lib/wallets';
 import { getCategories } from '../../../lib/categories';
 import { formatDateGroup } from '../../../lib/format';
-import { colors } from '../../../lib/theme';
+import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
 import { TransactionItem } from '../../../components/TransactionItem';
 import type { Category, Transaction, Wallet } from '../../../lib/types';
 
@@ -46,6 +47,8 @@ function buildRows(txs: Transaction[]): Row[] {
 }
 
 export default function TransactionsScreen() {
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [walletMap, setWalletMap] = useState<Record<string, Wallet>>({});
   const [catMap, setCatMap] = useState<Record<string, Category>>({});
@@ -123,10 +126,11 @@ export default function TransactionsScreen() {
         ))}
       </View>
 
-      {loading && transactions.length === 0 ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
+      <View style={styles.scrollArea}>
+        {loading && transactions.length === 0 ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+        ) : (
+          <FlatList
           data={rows}
           keyExtractor={(r) => r.key}
           contentContainerStyle={styles.list}
@@ -134,7 +138,7 @@ export default function TransactionsScreen() {
           refreshing={loading}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>💸</Text>
+              <Feather name="inbox" size={44} color={colors.muted} />
               <Text style={styles.emptyTitle}>Belum ada transaksi</Text>
               <Text style={styles.emptyText}>
                 Tap tombol di bawah untuk mencatat transaksi pertama kamu.
@@ -160,7 +164,8 @@ export default function TransactionsScreen() {
             )
           }
         />
-      )}
+        )}
+      </View>
 
       <Pressable
         style={styles.fab}
@@ -172,53 +177,59 @@ export default function TransactionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  title: { fontSize: 26, fontWeight: '800', color: colors.text },
-  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 8 },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-  },
-  filterChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  filterText: { fontSize: 13, fontWeight: '600', color: colors.text },
-  filterTextActive: { color: '#fff' },
-  list: { padding: 20, paddingBottom: 120, gap: 10 },
-  empty: { alignItems: 'center', paddingTop: 80, gap: 8 },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  emptyText: {
-    fontSize: 13,
-    color: colors.muted,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-  groupHeader: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.muted,
-    marginTop: 10,
-    marginBottom: 2,
-  },
-  fab: {
-    position: 'absolute',
-    left: 20,
-    right: 20,
-    bottom: 24,
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
-  },
-  fabText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-});
+function getStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.surface },
+    scrollArea: { flex: 1, backgroundColor: c.background },
+    header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 6 },
+    title: { fontSize: 26, fontWeight: '800', color: c.text, fontFamily: F.b },
+    filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingBottom: 10 },
+    filterChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+    },
+    filterChipActive: { backgroundColor: c.primary, borderColor: c.primary },
+    filterText: { fontSize: 13, fontWeight: '600', color: c.text, fontFamily: F.sb },
+    filterTextActive: { color: '#fff', fontFamily: F.sb },
+    list: { padding: 20, paddingBottom: 120, gap: 10 },
+    empty: { alignItems: 'center', paddingTop: 80, gap: 10 },
+    emptyTitle: { fontSize: 16, fontWeight: '700', color: c.text, fontFamily: F.b },
+    emptyText: {
+      fontSize: 13,
+      color: c.muted,
+      textAlign: 'center',
+      paddingHorizontal: 40,
+      fontFamily: F.r,
+    },
+    groupHeader: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: c.muted,
+      marginTop: 12,
+      marginBottom: 4,
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      fontFamily: F.b,
+    },
+    fab: {
+      position: 'absolute',
+      left: 20,
+      right: 20,
+      bottom: 24,
+      backgroundColor: c.primary,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      shadowColor: c.primary,
+      shadowOpacity: 0.3,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 5,
+    },
+    fabText: { color: '#fff', fontSize: 16, fontWeight: '700', fontFamily: F.b },
+  });
+}

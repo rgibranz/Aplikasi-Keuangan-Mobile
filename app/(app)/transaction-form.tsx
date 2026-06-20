@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Feather } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Alert,
@@ -25,7 +26,7 @@ import {
   updateTransaction,
 } from '../../lib/transactions';
 import { formatDateShort } from '../../lib/format';
-import { colors } from '../../lib/theme';
+import { useThemeColors, type AppColors } from '../../lib/ThemeProvider';
 import type { Category, TransactionType, Wallet } from '../../lib/types';
 
 const TYPES: { value: TransactionType; label: string }[] = [
@@ -37,6 +38,8 @@ const TYPES: { value: TransactionType; label: string }[] = [
 export default function TransactionForm() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEdit = !!id;
+  const colors = useThemeColors();
+  const styles = getStyles(colors);
 
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -155,7 +158,7 @@ export default function TransactionForm() {
           <View style={{ width: 50 }} />
         </View>
         <View style={styles.center}>
-          <Text style={styles.emptyEmoji}>👛</Text>
+          <Feather name="briefcase" size={48} color={colors.muted} />
           <Text style={styles.emptyTitle}>Belum ada dompet</Text>
           <Text style={styles.emptyText}>
             Bikin dompet dulu sebelum mencatat transaksi.
@@ -225,6 +228,7 @@ export default function TransactionForm() {
             items={wallets.map((w) => ({ id: w.id, label: w.wallet_name }))}
             selected={walletId}
             onSelect={setWalletId}
+            colors={colors}
           />
 
           {type === 'Transfer' && (
@@ -236,6 +240,7 @@ export default function TransactionForm() {
                   .map((w) => ({ id: w.id, label: w.wallet_name }))}
                 selected={destWalletId}
                 onSelect={setDestWalletId}
+                colors={colors}
               />
             </>
           )}
@@ -256,6 +261,7 @@ export default function TransactionForm() {
                   }))}
                   selected={categoryId}
                   onSelect={setCategoryId}
+                  colors={colors}
                 />
               )}
             </>
@@ -264,7 +270,7 @@ export default function TransactionForm() {
           <Text style={styles.label}>Tanggal</Text>
           <Pressable style={styles.dateBtn} onPress={openDatePicker}>
             <Text style={styles.dateText}>{formatDateShort(date.toISOString())}</Text>
-            <Text style={styles.dateIcon}>📅</Text>
+            <Feather name="calendar" size={18} color={colors.muted} />
           </Pressable>
 
           <Text style={styles.label}>Catatan (opsional)</Text>
@@ -300,11 +306,14 @@ function ChipScroller({
   items,
   selected,
   onSelect,
+  colors,
 }: {
   items: { id: string; label: string }[];
   selected: string | null;
   onSelect: (id: string) => void;
+  colors: AppColors;
 }) {
+  const styles = getStyles(colors);
   return (
     <ScrollView
       horizontal
@@ -329,104 +338,109 @@ function ChipScroller({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
-  flex: { flex: 1 },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
-  topbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  cancel: { fontSize: 16, color: colors.muted, fontWeight: '600' },
-  topTitle: { fontSize: 17, fontWeight: '800', color: colors.text },
-  save: { fontSize: 16, color: colors.primary, fontWeight: '800' },
-  container: { padding: 20, paddingBottom: 40, gap: 6 },
-  typeRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  typeChip: {
-    flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-  },
-  typeChipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  typeChipText: { fontSize: 13, fontWeight: '700', color: colors.text },
-  typeChipTextActive: { color: '#fff' },
-  amountBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    marginBottom: 6,
-  },
-  amountPrefix: { fontSize: 22, fontWeight: '800', color: colors.muted, marginRight: 8 },
-  amountInput: { flex: 1, fontSize: 30, fontWeight: '800', color: colors.text, paddingVertical: 6 },
-  label: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  muted: { fontSize: 13, color: colors.muted, lineHeight: 18 },
-  chipRow: { gap: 8, paddingVertical: 2, paddingRight: 8 },
-  chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.card,
-    maxWidth: 200,
-  },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipText: { fontSize: 14, fontWeight: '600', color: colors.text },
-  chipTextActive: { color: '#fff' },
-  dateBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  dateText: { fontSize: 15, fontWeight: '600', color: colors.text },
-  dateIcon: { fontSize: 18 },
-  notesInput: {
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
-    color: colors.text,
-    minHeight: 70,
-    textAlignVertical: 'top',
-  },
-  saveBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: 14,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 28,
-  },
-  saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  emptyEmoji: { fontSize: 48 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
-  emptyText: { fontSize: 13, color: colors.muted, textAlign: 'center', paddingHorizontal: 40 },
-});
+function getStyles(c: AppColors) {
+  return StyleSheet.create({
+    safe: { flex: 1, backgroundColor: c.background },
+    flex: { flex: 1 },
+    center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+    topbar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: c.border,
+    },
+    cancel: { fontSize: 16, color: c.muted, fontWeight: '600' },
+    topTitle: { fontSize: 17, fontWeight: '800', color: c.text },
+    save: { fontSize: 16, color: c.primary, fontWeight: '800' },
+    container: { padding: 20, paddingBottom: 40, gap: 6 },
+    typeRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+    typeChip: {
+      flex: 1,
+      paddingVertical: 12,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+    },
+    typeChipActive: { backgroundColor: c.primary, borderColor: c.primary },
+    typeChipText: { fontSize: 13, fontWeight: '700', color: c.text },
+    typeChipTextActive: { color: '#fff' },
+    amountBox: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: c.card,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      borderRadius: 16,
+      paddingHorizontal: 18,
+      paddingVertical: 10,
+      marginBottom: 6,
+    },
+    amountPrefix: { fontSize: 22, fontWeight: '800', color: c.muted, marginRight: 8 },
+    amountInput: { flex: 1, fontSize: 30, fontWeight: '800', color: c.text, paddingVertical: 6 },
+    label: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: c.text,
+      marginTop: 16,
+      marginBottom: 8,
+    },
+    muted: { fontSize: 13, color: c.muted, lineHeight: 18 },
+    chipRow: { gap: 8, paddingVertical: 2, paddingRight: 8 },
+    chip: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.surface,
+      maxWidth: 200,
+    },
+    chipActive: { backgroundColor: c.primary, borderColor: c.primary },
+    chipText: { fontSize: 14, fontWeight: '600', color: c.text },
+    chipTextActive: { color: '#fff' },
+    dateBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: c.surface,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+    },
+    dateText: { fontSize: 15, fontWeight: '600', color: c.text },
+    notesInput: {
+      backgroundColor: c.surface,
+      borderWidth: 1.5,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      color: c.text,
+      minHeight: 70,
+      textAlignVertical: 'top',
+    },
+    saveBtn: {
+      backgroundColor: c.primary,
+      borderRadius: 14,
+      paddingVertical: 17,
+      alignItems: 'center',
+      marginTop: 28,
+      shadowColor: c.primary,
+      shadowOpacity: 0.25,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: 4,
+    },
+    saveBtnText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+    emptyTitle: { fontSize: 16, fontWeight: '700', color: c.text },
+    emptyText: { fontSize: 13, color: c.muted, textAlign: 'center', paddingHorizontal: 40 },
+  });
+}
