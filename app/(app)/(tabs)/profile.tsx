@@ -22,6 +22,7 @@ import { getCategories } from '../../../lib/categories';
 import { getTransactions } from '../../../lib/transactions';
 import { formatDateShort } from '../../../lib/format';
 import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
+import { useRefreshOnSync } from '../../../lib/sync';
 
 export default function ProfileScreen() {
   const { session, signOut, updatePassword } = useAuth();
@@ -49,6 +50,7 @@ export default function ProfileScreen() {
       load();
     }, [load]),
   );
+  useRefreshOnSync(load);
 
   const email = session?.user.email ?? '';
   const initial = email ? email[0].toUpperCase() : '?';

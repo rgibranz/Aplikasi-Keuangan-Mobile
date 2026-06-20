@@ -16,6 +16,7 @@ import { getWallets } from '../../../lib/wallets';
 import { getCategories } from '../../../lib/categories';
 import { formatDateGroup } from '../../../lib/format';
 import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
+import { useRefreshOnSync } from '../../../lib/sync';
 import { TransactionItem } from '../../../components/TransactionItem';
 import type { Category, Transaction, Wallet } from '../../../lib/types';
 
@@ -77,6 +78,7 @@ export default function TransactionsScreen() {
       load();
     }, [load]),
   );
+  useRefreshOnSync(load);
 
   function confirmDelete(t: Transaction) {
     Alert.alert('Hapus transaksi?', 'Saldo dompet akan disesuaikan otomatis.', [

@@ -18,6 +18,7 @@ import { Feather } from '@expo/vector-icons';
 import { createWallet, deleteWallet, getWallets } from '../../../lib/wallets';
 import { formatRupiah } from '../../../lib/format';
 import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
+import { useRefreshOnSync } from '../../../lib/sync';
 import type { Wallet, WalletType } from '../../../lib/types';
 
 const WALLET_TYPES: WalletType[] = ['Bank', 'E-Wallet', 'Cash'];
@@ -56,6 +57,7 @@ export default function WalletsScreen() {
       load();
     }, [load]),
   );
+  useRefreshOnSync(load);
 
   function confirmDelete(wallet: Wallet) {
     Alert.alert(

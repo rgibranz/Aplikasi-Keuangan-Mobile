@@ -6,6 +6,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { AppThemeProvider, useThemeColors, useColorMode } from '../lib/ThemeProvider';
+import { useSyncTriggers } from '../lib/sync/triggers';
+import { OfflineBanner } from '../components/OfflineBanner';
 import { useFonts, IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold, IBMPlexMono_700Bold } from '@expo-google-fonts/ibm-plex-mono';
 
 function RootNavigator() {
@@ -15,6 +17,9 @@ function RootNavigator() {
   const inAuthGroup = segments[0] === '(auth)';
   const colors = useThemeColors();
   const colorMode = useColorMode();
+
+  // Sinkronisasi otomatis saat login (hidrasi awal, kembali online, foreground).
+  useSyncTriggers(!!session);
 
   useEffect(() => {
     if (isLoading) return;
@@ -39,6 +44,7 @@ function RootNavigator() {
   return (
     <>
       <Slot />
+      <OfflineBanner />
       <StatusBar style={colorMode === 'dark' ? 'light' : 'dark'} />
     </>
   );

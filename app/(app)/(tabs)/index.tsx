@@ -18,6 +18,7 @@ import { getTransactions } from '../../../lib/transactions';
 import { formatRupiah, monthYearLabel } from '../../../lib/format';
 import { monthlyTotals } from '../../../lib/stats';
 import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
+import { useRefreshOnSync } from '../../../lib/sync';
 import { TransactionItem } from '../../../components/TransactionItem';
 import type { Category, Transaction, Wallet } from '../../../lib/types';
 
@@ -57,6 +58,7 @@ export default function Home() {
       load();
     }, [load]),
   );
+  useRefreshOnSync(load);
 
   const total = wallets.reduce((sum, w) => sum + Number(w.current_balance), 0);
   const now = new Date();

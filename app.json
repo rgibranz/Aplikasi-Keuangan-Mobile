@@ -3,7 +3,7 @@
     "name": "Uang Kita",
     "slug": "uang-kita",
     "scheme": "uangkita",
-    "version": "0.1.2",
+    "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -27,7 +27,8 @@
       "expo-status-bar",
       "expo-secure-store",
       "@react-native-community/datetimepicker",
-      "expo-font"
+      "expo-font",
+      "expo-sqlite"
     ]
   }
 }
