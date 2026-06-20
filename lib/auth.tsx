@@ -19,6 +19,7 @@ type AuthContextValue = {
     password: string,
   ) => Promise<SignResult & { needsConfirmation: boolean }>;
   signOut: () => Promise<void>;
+  updatePassword: (password: string) => Promise<SignResult>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -74,9 +75,14 @@ export function AuthProvider({ children }: PropsWithChildren) {
     await supabase.auth.signOut();
   }
 
+  async function updatePassword(password: string): Promise<SignResult> {
+    const { error } = await supabase.auth.updateUser({ password });
+    return { error: error?.message ?? null };
+  }
+
   return (
     <AuthContext.Provider
-      value={{ session, isLoading, signIn, signUp, signOut }}
+      value={{ session, isLoading, signIn, signUp, signOut, updatePassword }}
     >
       {children}
     </AuthContext.Provider>
