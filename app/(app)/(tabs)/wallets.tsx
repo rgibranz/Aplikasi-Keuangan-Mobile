@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { createWallet, deleteWallet, getWallets } from '../../../lib/wallets';
 import { formatRupiah } from '../../../lib/format';
@@ -115,6 +115,17 @@ export default function WalletsScreen() {
             return (
               <Pressable
                 style={styles.card}
+                onPress={() =>
+                  router.push({
+                    pathname: '/wallet-detail',
+                    params: {
+                      id: item.id,
+                      name: item.wallet_name,
+                      type: item.wallet_type,
+                      balance: String(item.current_balance),
+                    },
+                  })
+                }
                 onLongPress={() => confirmDelete(item)}
               >
                 <View style={[styles.cardIconWrap, { backgroundColor: ic + '18' }]}>

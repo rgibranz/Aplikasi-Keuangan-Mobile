@@ -84,7 +84,7 @@ export default function Home() {
         }
       >
         {/* Balance Hero Card */}
-        <View style={styles.balanceCard}>
+        <Pressable style={styles.balanceCard} onPress={() => router.push('/wallets')}>
           <View style={styles.balanceDecorL} />
           <View style={styles.balanceDecorR} />
           <Text style={styles.balanceLabel}>Total Saldo</Text>
@@ -92,7 +92,7 @@ export default function Home() {
           <Text style={styles.balanceHint}>
             {wallets.length === 0 ? 'Belum ada dompet' : `dari ${wallets.length} dompet`}
           </Text>
-        </View>
+        </Pressable>
 
         {/* Monthly Summary */}
         <View style={styles.monthCard}>
