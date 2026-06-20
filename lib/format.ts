@@ -34,3 +34,13 @@ export function formatDateGroup(iso: string): string {
   if (diffDays === 1) return 'Kemarin';
   return `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`;
 }
+
+const BULAN_PANJANG = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
+// "Juni 2026"
+export function monthYearLabel(d: Date): string {
+  return `${BULAN_PANJANG[d.getMonth()]} ${d.getFullYear()}`;
+}

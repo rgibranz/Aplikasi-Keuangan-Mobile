@@ -12,21 +12,36 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useAuth } from '../../../lib/auth';
 import { getWallets } from '../../../lib/wallets';
-import { formatRupiah } from '../../../lib/format';
+import { getCategories } from '../../../lib/categories';
+import { getTransactions } from '../../../lib/transactions';
+import { formatRupiah, monthYearLabel } from '../../../lib/format';
+import { monthlyTotals } from '../../../lib/stats';
 import { colors } from '../../../lib/theme';
-import type { Wallet } from '../../../lib/types';
+import { TransactionItem } from '../../../components/TransactionItem';
+import type { Category, Transaction, Wallet } from '../../../lib/types';
 
 export default function Home() {
   const { session, signOut } = useAuth();
   const router = useRouter();
   const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [walletMap, setWalletMap] = useState<Record<string, Wallet>>({});
+  const [catMap, setCatMap] = useState<Record<string, Category>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
       setError(null);
-      setWallets(await getWallets());
+      const [w, tx, cats] = await Promise.all([
+        getWallets(),
+        getTransactions(),
+        getCategories(),
+      ]);
+      setWallets(w);
+      setTransactions(tx);
+      setWalletMap(Object.fromEntries(w.map((x) => [x.id, x])));
+      setCatMap(Object.fromEntries(cats.map((c) => [c.id, c])));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat data');
     } finally {
@@ -41,6 +56,9 @@ export default function Home() {
   );
 
   const total = wallets.reduce((sum, w) => sum + Number(w.current_balance), 0);
+  const now = new Date();
+  const { income, expense } = monthlyTotals(transactions, now);
+  const recent = transactions.slice(0, 5);
   const email = session?.user.email ?? '';
 
   return (
@@ -67,19 +85,36 @@ export default function Home() {
           <Text style={styles.balanceLabel}>Total Saldo</Text>
           <Text style={styles.balanceValue}>{formatRupiah(total)}</Text>
           <Text style={styles.balanceHint}>
-            {wallets.length === 0
-              ? 'Belum ada dompet'
-              : `${wallets.length} dompet`}
+            {wallets.length === 0 ? 'Belum ada dompet' : `${wallets.length} dompet`}
           </Text>
+        </View>
+
+        <View style={styles.monthCard}>
+          <Text style={styles.monthLabel}>{monthYearLabel(now)}</Text>
+          <View style={styles.monthRow}>
+            <View style={styles.monthCol}>
+              <Text style={styles.monthCaption}>Pemasukan</Text>
+              <Text style={[styles.monthValue, { color: colors.primary }]}>
+                {formatRupiah(income)}
+              </Text>
+            </View>
+            <View style={styles.monthDivider} />
+            <View style={styles.monthCol}>
+              <Text style={styles.monthCaption}>Pengeluaran</Text>
+              <Text style={[styles.monthValue, { color: colors.danger }]}>
+                {formatRupiah(expense)}
+              </Text>
+            </View>
+          </View>
         </View>
 
         <View style={styles.quickRow}>
           <Pressable
             style={styles.quickCard}
-            onPress={() => router.push('/transactions')}
+            onPress={() => router.push('/transaction-form')}
           >
-            <Text style={styles.quickEmoji}>💸</Text>
-            <Text style={styles.quickText}>Transaksi</Text>
+            <Text style={styles.quickEmoji}>➕</Text>
+            <Text style={styles.quickText}>Catat</Text>
           </Pressable>
           <Pressable
             style={styles.quickCard}
@@ -88,44 +123,56 @@ export default function Home() {
             <Text style={styles.quickEmoji}>🏷️</Text>
             <Text style={styles.quickText}>Kategori</Text>
           </Pressable>
+          <Pressable
+            style={styles.quickCard}
+            onPress={() => router.push('/wallets')}
+          >
+            <Text style={styles.quickEmoji}>👛</Text>
+            <Text style={styles.quickText}>Dompet</Text>
+          </Pressable>
         </View>
 
         {error && <Text style={styles.error}>{error}</Text>}
 
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionTitle}>Dompet kamu</Text>
-          <Pressable onPress={() => router.push('/wallets')}>
+          <Text style={styles.sectionTitle}>Transaksi terbaru</Text>
+          <Pressable onPress={() => router.push('/transactions')}>
             <Text style={styles.link}>Lihat semua</Text>
           </Pressable>
         </View>
 
-        {loading && wallets.length === 0 ? (
+        {loading && transactions.length === 0 ? (
           <ActivityIndicator color={colors.primary} style={{ marginTop: 12 }} />
-        ) : wallets.length === 0 ? (
+        ) : recent.length === 0 ? (
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>Belum ada dompet</Text>
+            <Text style={styles.emptyTitle}>Belum ada transaksi</Text>
             <Text style={styles.emptyText}>
-              Tambah dompet pertama kamu di tab Dompet.
+              Mulai catat pemasukan & pengeluaranmu.
             </Text>
             <Pressable
               style={styles.emptyBtn}
-              onPress={() => router.push('/wallets')}
+              onPress={() => router.push('/transaction-form')}
             >
-              <Text style={styles.emptyBtnText}>Ke Dompet</Text>
+              <Text style={styles.emptyBtnText}>Catat Transaksi</Text>
             </Pressable>
           </View>
         ) : (
-          wallets.slice(0, 5).map((w) => (
-            <View key={w.id} style={styles.walletRow}>
-              <View>
-                <Text style={styles.walletName}>{w.wallet_name}</Text>
-                <Text style={styles.walletType}>{w.wallet_type}</Text>
-              </View>
-              <Text style={styles.walletBalance}>
-                {formatRupiah(Number(w.current_balance))}
-              </Text>
-            </View>
-          ))
+          <View style={styles.recentList}>
+            {recent.map((t) => (
+              <TransactionItem
+                key={t.id}
+                t={t}
+                walletMap={walletMap}
+                catMap={catMap}
+                onPress={() =>
+                  router.push({
+                    pathname: '/transaction-form',
+                    params: { id: t.id },
+                  })
+                }
+              />
+            ))}
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -161,6 +208,24 @@ const styles = StyleSheet.create({
   },
   balanceValue: { color: '#fff', fontSize: 34, fontWeight: '800', marginTop: 8 },
   balanceHint: { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 4 },
+  monthCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  monthLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.muted,
+    marginBottom: 14,
+  },
+  monthRow: { flexDirection: 'row', alignItems: 'center' },
+  monthCol: { flex: 1, alignItems: 'center', gap: 4 },
+  monthCaption: { fontSize: 12, color: colors.muted, fontWeight: '600' },
+  monthValue: { fontSize: 18, fontWeight: '800' },
+  monthDivider: { width: 1, height: 36, backgroundColor: colors.border },
   quickRow: { flexDirection: 'row', gap: 12 },
   quickCard: {
     flex: 1,
@@ -168,12 +233,12 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingVertical: 18,
+    paddingVertical: 16,
     alignItems: 'center',
     gap: 6,
   },
-  quickEmoji: { fontSize: 24 },
-  quickText: { fontSize: 13, fontWeight: '700', color: colors.text },
+  quickEmoji: { fontSize: 22 },
+  quickText: { fontSize: 12, fontWeight: '700', color: colors.text },
   error: { color: colors.danger, fontSize: 13 },
   sectionRow: {
     flexDirection: 'row',
@@ -183,6 +248,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
   link: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  recentList: { gap: 10 },
   emptyCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -202,17 +268,4 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
-  walletRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  walletName: { fontSize: 15, fontWeight: '700', color: colors.text },
-  walletType: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  walletBalance: { fontSize: 15, fontWeight: '700', color: colors.text },
 });

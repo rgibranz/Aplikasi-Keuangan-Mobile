@@ -13,8 +13,9 @@ import { router, useFocusEffect } from 'expo-router';
 import { deleteTransaction, getTransactions } from '../../../lib/transactions';
 import { getWallets } from '../../../lib/wallets';
 import { getCategories } from '../../../lib/categories';
-import { formatDateGroup, formatRupiah } from '../../../lib/format';
+import { formatDateGroup } from '../../../lib/format';
 import { colors } from '../../../lib/theme';
+import { TransactionItem } from '../../../components/TransactionItem';
 import type { Category, Transaction, Wallet } from '../../../lib/types';
 
 type Filter = 'All' | 'Income' | 'Expense' | 'Transfer';
@@ -75,25 +76,21 @@ export default function TransactionsScreen() {
   );
 
   function confirmDelete(t: Transaction) {
-    Alert.alert(
-      'Hapus transaksi?',
-      'Saldo dompet akan disesuaikan otomatis.',
-      [
-        { text: 'Batal', style: 'cancel' },
-        {
-          text: 'Hapus',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await deleteTransaction(t.id);
-              load();
-            } catch (e) {
-              Alert.alert('Gagal hapus', e instanceof Error ? e.message : 'Error');
-            }
-          },
+    Alert.alert('Hapus transaksi?', 'Saldo dompet akan disesuaikan otomatis.', [
+      { text: 'Batal', style: 'cancel' },
+      {
+        text: 'Hapus',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteTransaction(t.id);
+            load();
+          } catch (e) {
+            Alert.alert('Gagal hapus', e instanceof Error ? e.message : 'Error');
+          }
         },
-      ],
-    );
+      },
+    ]);
   }
 
   const filtered = transactions.filter((t) =>
@@ -148,17 +145,17 @@ export default function TransactionsScreen() {
             item.kind === 'header' ? (
               <Text style={styles.groupHeader}>{item.label}</Text>
             ) : (
-              <TransactionRow
+              <TransactionItem
                 t={item.tx}
                 walletMap={walletMap}
                 catMap={catMap}
-                onEdit={() =>
+                onPress={() =>
                   router.push({
                     pathname: '/transaction-form',
                     params: { id: item.tx.id },
                   })
                 }
-                onDelete={() => confirmDelete(item.tx)}
+                onLongPress={() => confirmDelete(item.tx)}
               />
             )
           }
@@ -172,64 +169,6 @@ export default function TransactionsScreen() {
         <Text style={styles.fabText}>＋ Catat Transaksi</Text>
       </Pressable>
     </SafeAreaView>
-  );
-}
-
-function TransactionRow({
-  t,
-  walletMap,
-  catMap,
-  onEdit,
-  onDelete,
-}: {
-  t: Transaction;
-  walletMap: Record<string, Wallet>;
-  catMap: Record<string, Category>;
-  onEdit: () => void;
-  onDelete: () => void;
-}) {
-  const isIncome = t.transaction_type === 'Income';
-  const isTransfer = t.transaction_type === 'Transfer';
-  const cat = t.category_id ? catMap[t.category_id] : null;
-  const wallet = walletMap[t.wallet_id];
-  const dest = t.destination_wallet_id ? walletMap[t.destination_wallet_id] : null;
-
-  const emoji = isTransfer ? '🔁' : cat?.icon_name ?? (isIncome ? '💰' : '🧾');
-  const tint = isTransfer
-    ? colors.muted
-    : cat?.color_hex ?? (isIncome ? colors.primary : colors.danger);
-  const title = isTransfer
-    ? 'Transfer'
-    : cat?.category_name ?? (isIncome ? 'Pemasukan' : 'Pengeluaran');
-  const subtitle = isTransfer
-    ? `${wallet?.wallet_name ?? '?'} → ${dest?.wallet_name ?? '?'}`
-    : wallet?.wallet_name ?? '';
-  const sign = isIncome ? '+' : isTransfer ? '' : '-';
-  const amountColor = isIncome
-    ? colors.primary
-    : isTransfer
-      ? colors.text
-      : colors.danger;
-
-  return (
-    <Pressable style={styles.row} onPress={onEdit} onLongPress={onDelete}>
-      <View style={[styles.rowIcon, { backgroundColor: tint + '22' }]}>
-        <Text style={{ fontSize: 18 }}>{emoji}</Text>
-      </View>
-      <View style={styles.rowMid}>
-        <Text style={styles.rowTitle} numberOfLines={1}>
-          {title}
-          {t.notes ? ` · ${t.notes}` : ''}
-        </Text>
-        <Text style={styles.rowSub} numberOfLines={1}>
-          {subtitle}
-        </Text>
-      </View>
-      <Text style={[styles.rowAmount, { color: amountColor }]}>
-        {sign}
-        {formatRupiah(Number(t.amount))}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -266,27 +205,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 2,
   },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  rowIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowMid: { flex: 1 },
-  rowTitle: { fontSize: 15, fontWeight: '700', color: colors.text },
-  rowSub: { fontSize: 12, color: colors.muted, marginTop: 2 },
-  rowAmount: { fontSize: 15, fontWeight: '800' },
   fab: {
     position: 'absolute',
     left: 20,
