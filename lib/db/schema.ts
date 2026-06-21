@@ -88,6 +88,31 @@ create index if not exists idx_tx_wallet on transactions(wallet_id);
 delete from sync_meta where table_name = 'transactions';
 `;
 
+const SCHEMA_V3 = `
+create table if not exists recurring_templates (
+  id text primary key not null,
+  user_id text not null,
+  label text not null,
+  wallet_id text not null,
+  destination_wallet_id text,
+  category_id text not null,
+  transaction_type text not null check(transaction_type in ('Income','Expense','Transfer')),
+  amount real not null default 0,
+  notes text,
+  recurrence text not null check(recurrence in ('daily','weekly','monthly','yearly')),
+  day_of_month integer,
+  time_hour integer not null default 8,
+  time_minute integer not null default 0,
+  next_due_at text not null,
+  notification_id text,
+  is_active integer not null default 1,
+  created_at text not null,
+  updated_at text not null,
+  deleted_at text
+);
+create index if not exists idx_recurring_user on recurring_templates(user_id);
+`;
+
 // Migrasi berbasis PRAGMA user_version (pola resmi expo-sqlite SDK 56).
 export async function migrate(db: SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
@@ -100,5 +125,9 @@ export async function migrate(db: SQLiteDatabase): Promise<void> {
   if (version < 2) {
     await db.execAsync(SCHEMA_V2);
     await db.execAsync('PRAGMA user_version = 2');
+  }
+  if (version < 3) {
+    await db.execAsync(SCHEMA_V3);
+    await db.execAsync('PRAGMA user_version = 3');
   }
 }
