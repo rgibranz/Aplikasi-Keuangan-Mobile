@@ -17,7 +17,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { createWallet, deleteWallet, getWallets } from '../../../lib/wallets';
 import { formatRupiah } from '../../../lib/format';
-import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
+import { useThemeColors, type AppColors, F, useBalanceVisible } from '../../../lib/ThemeProvider';
 import { useRefreshOnSync } from '../../../lib/sync';
 import type { Wallet, WalletType } from '../../../lib/types';
 
@@ -38,6 +38,7 @@ function colorFor(type: WalletType): string {
 export default function WalletsScreen() {
   const colors = useThemeColors();
   const styles = getStyles(colors);
+  const { balanceVisible } = useBalanceVisible();
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
@@ -90,7 +91,9 @@ export default function WalletsScreen() {
           <Text style={styles.title}>Dompet</Text>
           <Text style={styles.totalLabel}>Total saldo</Text>
         </View>
-        <Text style={styles.total}>{formatRupiah(total)}</Text>
+        <Text style={styles.total}>
+          {balanceVisible ? formatRupiah(total) : '••••••'}
+        </Text>
       </View>
 
       <View style={styles.scrollArea}>
@@ -138,7 +141,7 @@ export default function WalletsScreen() {
                   <Text style={styles.cardType}>{item.wallet_type}</Text>
                 </View>
                 <Text style={styles.cardBalance}>
-                  {formatRupiah(Number(item.current_balance))}
+                  {balanceVisible ? formatRupiah(Number(item.current_balance)) : '••••••'}
                 </Text>
               </Pressable>
             );
