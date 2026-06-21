@@ -267,7 +267,7 @@ export async function rescheduleStaleTemplates(): Promise<void> {
   const uid = await currentUserIdOrNull();
   if (!uid) return;
   const db = await getDb();
-  const now = new Date().toISOString();
+  const now = nowIso();
   const stale = await db.getAllAsync<RecurringTemplate>(
     'select * from recurring_templates where user_id=? and is_active=1 and deleted_at is null and next_due_at < ?',
     [uid, now],
