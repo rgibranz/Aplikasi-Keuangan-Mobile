@@ -1,6 +1,7 @@
 import { supabase } from '../supabase';
 import { getDb, runExclusive, type SQLiteCtx } from '../db';
 import { emitSynced } from './bus';
+import { updateWidgetsSoon } from '../widget/snapshot';
 
 export { onSynced } from './bus';
 export { useRefreshOnSync } from './useRefreshOnSync';
@@ -13,6 +14,7 @@ let debounce: ReturnType<typeof setTimeout> | null = null;
 // Dipanggil setelah setiap mutasi lokal. Di-debounce supaya beberapa perubahan
 // beruntun jadi satu kali sync.
 export function syncSoon(delayMs = 1200): void {
+  updateWidgetsSoon(); // refresh widget tiap mutasi (jalan utk tamu & login)
   if (debounce) clearTimeout(debounce);
   debounce = setTimeout(() => {
     debounce = null;
@@ -42,7 +44,10 @@ export async function syncNow(): Promise<void> {
       const db = await getDb();
       await pushAll(db, uid);
       const changed = await pullAll(db);
-      if (changed) emitSynced();
+      if (changed) {
+        emitSynced();
+        updateWidgetsSoon();
+      }
     } while (queued);
   } catch (e) {
     // Data sudah aman di SQLite — diamkan, akan dicoba lagi nanti.

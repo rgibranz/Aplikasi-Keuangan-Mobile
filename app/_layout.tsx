@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { AppThemeProvider, useThemeColors, useColorMode } from '../lib/ThemeProvider';
 import { useSyncTriggers } from '../lib/sync/triggers';
+import { updateWidgetsSoon } from '../lib/widget/snapshot';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { useFonts, IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold, IBMPlexMono_700Bold } from '@expo-google-fonts/ibm-plex-mono';
 
@@ -54,9 +55,11 @@ function RootNavigator() {
 
 function AppLayout() {
   useEffect(() => {
+    updateWidgetsSoon(); // seed snapshot widget saat app dibuka
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         supabase.auth.startAutoRefresh();
+        updateWidgetsSoon();
       } else {
         supabase.auth.stopAutoRefresh();
       }
