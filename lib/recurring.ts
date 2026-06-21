@@ -109,9 +109,17 @@ if (__DEV__) {
   }
 }
 
+let _notifPermGranted: boolean | null = null;
+async function hasNotifPerm(): Promise<boolean> {
+  if (_notifPermGranted !== null) return _notifPermGranted;
+  const { status } = await Notifications.requestPermissionsAsync();
+  _notifPermGranted = status === 'granted';
+  return _notifPermGranted;
+}
+
 async function scheduleNotif(
   t: Pick<RecurringTemplate, 'id' | 'label' | 'transaction_type' | 'amount' | 'wallet_id' | 'category_id' | 'destination_wallet_id' | 'notes' | 'next_due_at'>,
-): Promise<string> {
+): Promise<string | null> {
   const amountText =
     t.amount > 0
       ? `Rp ${Math.round(t.amount).toLocaleString('id-ID')}`
@@ -121,8 +129,7 @@ async function scheduleNotif(
     : t.transaction_type === 'Expense' ? 'Pengeluaran'
     : 'Transfer';
 
-  const { status } = await Notifications.requestPermissionsAsync();
-  if (status !== 'granted') return '';
+  if (!(await hasNotifPerm())) return null;
 
   return Notifications.scheduleNotificationAsync({
     content: {
@@ -146,7 +153,7 @@ async function scheduleNotif(
   });
 }
 
-async function cancelNotif(notifId: string | null): Promise<void> {
+async function cancelNotif(notifId: string | null | undefined): Promise<void> {
   if (!notifId) return;
   await Notifications.cancelScheduledNotificationAsync(notifId).catch(() => {});
 }
@@ -163,7 +170,7 @@ export async function getRecurringTemplates(): Promise<RecurringTemplate[]> {
 export async function getRecurringTemplate(id: string): Promise<RecurringTemplate> {
   const db = await getDb();
   const t = await db.getFirstAsync<RecurringTemplate>(
-    'select * from recurring_templates where id = ?',
+    'select * from recurring_templates where id = ? and deleted_at is null',
     [id],
   );
   if (!t) throw new Error('Template tidak ditemukan');
@@ -251,7 +258,8 @@ export async function toggleTemplateActive(id: string, isActive: boolean): Promi
 export async function rescheduleAfterConfirm(templateId: string): Promise<void> {
   const t = await getRecurringTemplate(templateId);
   if (!t.is_active) return;
-  const nextDueAt = computeNextDueAt(t.recurrence, new Date(), t.time_hour, t.time_minute, t.day_of_month);
+  await cancelNotif(t.notification_id);
+  const nextDueAt = computeNextDueAt(t.recurrence, new Date(t.next_due_at), t.time_hour, t.time_minute, t.day_of_month);
   const notifId = await scheduleNotif({ ...t, next_due_at: nextDueAt.toISOString() });
   const db = await getDb();
   const ts = nowIso();
@@ -273,6 +281,7 @@ export async function rescheduleStaleTemplates(): Promise<void> {
     [uid, now],
   );
   for (const t of stale) {
+    await cancelNotif(t.notification_id);
     let nextDueAt = new Date(t.next_due_at);
     const limit = new Date();
     while (nextDueAt <= limit) {

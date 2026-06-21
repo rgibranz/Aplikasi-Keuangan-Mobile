@@ -157,7 +157,7 @@ export default function TransactionForm() {
       } else {
         await createTransaction(payload);
       }
-      if (templateId) {
+      if (templateId && !isEdit) {
         await rescheduleAfterConfirm(templateId).catch(() => {});
       }
       router.back();
