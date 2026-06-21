@@ -25,6 +25,7 @@ import {
   getTransaction,
   updateTransaction,
 } from '../../lib/transactions';
+import { rescheduleAfterConfirm } from '../../lib/recurring';
 import { formatDateShort } from '../../lib/format';
 import { useThemeColors, type AppColors } from '../../lib/ThemeProvider';
 import type { Category, TransactionType, Wallet } from '../../lib/types';
@@ -36,7 +37,25 @@ const TYPES: { value: TransactionType; label: string }[] = [
 ];
 
 export default function TransactionForm() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const {
+    id,
+    templateId,
+    prefillType,
+    prefillWalletId,
+    prefillCategoryId,
+    prefillDestWalletId,
+    prefillAmount,
+    prefillNotes,
+  } = useLocalSearchParams<{
+    id?: string;
+    templateId?: string;
+    prefillType?: string;
+    prefillWalletId?: string;
+    prefillCategoryId?: string;
+    prefillDestWalletId?: string;
+    prefillAmount?: string;
+    prefillNotes?: string;
+  }>();
   const isEdit = !!id;
   const colors = useThemeColors();
   const styles = getStyles(colors);
@@ -69,6 +88,14 @@ export default function TransactionForm() {
           setCategoryId(t.category_id);
           setDate(new Date(t.transaction_date));
           setNotes(t.notes ?? '');
+        } else if (prefillType) {
+          // Pre-fill dari notifikasi transaksi rutin
+          setType((prefillType as TransactionType) || 'Expense');
+          if (prefillWalletId) setWalletId(prefillWalletId);
+          if (prefillCategoryId) setCategoryId(prefillCategoryId);
+          if (prefillDestWalletId) setDestWalletId(prefillDestWalletId);
+          if (prefillAmount && prefillAmount !== '0') setAmount(prefillAmount);
+          if (prefillNotes) setNotes(prefillNotes);
         } else if (w.length > 0) {
           setWalletId(w[0].id);
         }
@@ -129,6 +156,9 @@ export default function TransactionForm() {
         await updateTransaction(id, payload);
       } else {
         await createTransaction(payload);
+      }
+      if (templateId) {
+        await rescheduleAfterConfirm(templateId).catch(() => {});
       }
       router.back();
     } catch (e) {
