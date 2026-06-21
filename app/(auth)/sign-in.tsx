@@ -10,13 +10,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../lib/auth';
 import { useThemeColors, type AppColors } from '../../lib/ThemeProvider';
 
 export default function SignIn() {
-  const { signIn } = useAuth();
+  const { signIn, continueAsGuest } = useAuth();
+  const router = useRouter();
   const colors = useThemeColors();
   const styles = getStyles(colors);
   const [email, setEmail] = useState('');
@@ -94,6 +95,23 @@ export default function SignIn() {
             <Text style={styles.footerText}>Belum punya akun? </Text>
             <Link href="/sign-up" style={styles.link}>Daftar</Link>
           </View>
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>atau</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <Pressable
+            style={styles.guestBtn}
+            onPress={async () => {
+              await continueAsGuest();
+              router.replace('/');
+            }}
+          >
+            <Text style={styles.guestBtnText}>Pakai tanpa akun</Text>
+          </Pressable>
+          <Text style={styles.guestHint}>Data disimpan di HP ini saja.</Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -165,5 +183,19 @@ function getStyles(c: AppColors) {
     footer: { flexDirection: 'row', justifyContent: 'center', marginTop: 32 },
     footerText: { color: c.muted, fontSize: 14 },
     link: { color: c.primary, fontSize: 14, fontWeight: '700' },
+    dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24 },
+    dividerLine: { flex: 1, height: 1, backgroundColor: c.border },
+    dividerText: { color: c.muted, fontSize: 12, fontWeight: '600' },
+    guestBtn: {
+      marginTop: 16,
+      borderRadius: 14,
+      paddingVertical: 16,
+      alignItems: 'center',
+      borderWidth: 1.5,
+      borderColor: c.border,
+      backgroundColor: c.card,
+    },
+    guestBtnText: { color: c.text, fontSize: 15, fontWeight: '700' },
+    guestHint: { color: c.muted, fontSize: 12, textAlign: 'center', marginTop: 10 },
   });
 }

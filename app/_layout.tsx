@@ -11,7 +11,7 @@ import { OfflineBanner } from '../components/OfflineBanner';
 import { useFonts, IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold, IBMPlexMono_700Bold } from '@expo-google-fonts/ibm-plex-mono';
 
 function RootNavigator() {
-  const { session, isLoading } = useAuth();
+  const { session, isGuest, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const inAuthGroup = segments[0] === '(auth)';
@@ -24,15 +24,17 @@ function RootNavigator() {
   useEffect(() => {
     if (isLoading) return;
 
-    if (!session && !inAuthGroup) {
+    // Tamu (isGuest) boleh masuk app DAN boleh mengakses layar (auth) untuk
+    // upgrade jadi akun. Hanya sesi asli yang ditendang keluar dari grup (auth).
+    if (!session && !isGuest && !inAuthGroup) {
       router.replace('/sign-in');
     } else if (session && inAuthGroup) {
       router.replace('/');
     }
-  }, [session, isLoading, inAuthGroup, router]);
+  }, [session, isGuest, isLoading, inAuthGroup, router]);
 
   const isRedirecting =
-    (!session && !inAuthGroup) || (session && inAuthGroup);
+    (!session && !isGuest && !inAuthGroup) || (session && inAuthGroup);
   if (isLoading || isRedirecting) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>

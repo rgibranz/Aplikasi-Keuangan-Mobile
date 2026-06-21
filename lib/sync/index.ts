@@ -1,6 +1,5 @@
 import { supabase } from '../supabase';
 import { getDb, runExclusive, type SQLiteCtx } from '../db';
-import { currentUserIdOrNull } from '../db/user';
 import { emitSynced } from './bus';
 
 export { onSynced } from './bus';
@@ -30,7 +29,10 @@ export async function syncNow(): Promise<void> {
     queued = true;
     return;
   }
-  const uid = await currentUserIdOrNull();
+  // Gerbang: sync HANYA untuk sesi Supabase asli. Tamu (tanpa sesi) tidak pernah
+  // menyentuh cloud meski currentUserId mengembalikan id tamu untuk data lokal.
+  const { data: sess } = await supabase.auth.getSession();
+  const uid = sess.session?.user.id;
   if (!uid) return;
 
   syncing = true;
@@ -38,7 +40,7 @@ export async function syncNow(): Promise<void> {
     do {
       queued = false;
       const db = await getDb();
-      await pushAll(db);
+      await pushAll(db, uid);
       const changed = await pullAll(db);
       if (changed) emitSynced();
     } while (queued);
@@ -51,11 +53,12 @@ export async function syncNow(): Promise<void> {
 }
 
 // ── PUSH ─────────────────────────────────────────────────────────────────────
-async function pushAll(db: SQLiteCtx): Promise<void> {
+async function pushAll(db: SQLiteCtx, uid: string): Promise<void> {
   // Urutan mengikuti foreign key: wallets -> categories -> transactions.
-  await pushWallets(db);
-  await pushCategories(db);
-  await pushTransactions(db);
+  // Filter user_id = uid: jangan pernah push baris milik tamu / user lain.
+  await pushWallets(db, uid);
+  await pushCategories(db, uid);
+  await pushTransactions(db, uid);
 }
 
 interface WalletRow {
@@ -64,8 +67,8 @@ interface WalletRow {
   updated_at: string; deleted_at: string | null; dirty: number; server_synced: number;
 }
 
-async function pushWallets(db: SQLiteCtx): Promise<void> {
-  const rows = await db.getAllAsync<WalletRow>('select * from wallets where dirty = 1');
+async function pushWallets(db: SQLiteCtx, uid: string): Promise<void> {
+  const rows = await db.getAllAsync<WalletRow>('select * from wallets where dirty = 1 and user_id = ?', [uid]);
   for (const r of rows) {
     if (!r.server_synced) {
       // Insert pertama: kirim initial_balance sebagai current_balance.
@@ -106,8 +109,8 @@ interface CategoryRow {
   updated_at: string; deleted_at: string | null;
 }
 
-async function pushCategories(db: SQLiteCtx): Promise<void> {
-  const rows = await db.getAllAsync<CategoryRow>('select * from categories where dirty = 1');
+async function pushCategories(db: SQLiteCtx, uid: string): Promise<void> {
+  const rows = await db.getAllAsync<CategoryRow>('select * from categories where dirty = 1 and user_id = ?', [uid]);
   if (rows.length === 0) return;
   const payload = rows.map((r) => ({
     id: r.id, user_id: r.user_id, category_name: r.category_name,
@@ -139,8 +142,8 @@ interface TransactionRow {
   transaction_date: string; updated_at: string; deleted_at: string | null;
 }
 
-async function pushTransactions(db: SQLiteCtx): Promise<void> {
-  const rows = await db.getAllAsync<TransactionRow>('select * from transactions where dirty = 1');
+async function pushTransactions(db: SQLiteCtx, uid: string): Promise<void> {
+  const rows = await db.getAllAsync<TransactionRow>('select * from transactions where dirty = 1 and user_id = ?', [uid]);
   if (rows.length === 0) return;
   // Upsert aman & idempoten: trigger server mem-balik efek lama lalu menerapkan
   // efek baru, jadi push ulang nilai sama = nol perubahan saldo.

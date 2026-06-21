@@ -25,7 +25,7 @@ import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
 import { useRefreshOnSync } from '../../../lib/sync';
 
 export default function ProfileScreen() {
-  const { session, signOut, updatePassword } = useAuth();
+  const { session, signOut, updatePassword, isGuest } = useAuth();
   const router = useRouter();
   const colors = useThemeColors();
   const styles = getStyles(colors);
@@ -53,15 +53,19 @@ export default function ProfileScreen() {
   useRefreshOnSync(load);
 
   const email = session?.user.email ?? '';
-  const initial = email ? email[0].toUpperCase() : '?';
+  const initial = isGuest ? 'T' : email ? email[0].toUpperCase() : '?';
   const createdAt = session?.user.created_at;
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   function confirmSignOut() {
-    Alert.alert('Keluar?', 'Kamu akan keluar dari akun ini.', [
-      { text: 'Batal', style: 'cancel' },
-      { text: 'Keluar', style: 'destructive', onPress: () => signOut() },
-    ]);
+    Alert.alert(
+      isGuest ? 'Keluar mode tamu?' : 'Keluar?',
+      isGuest ? 'Data tamu tetap tersimpan di HP ini.' : 'Kamu akan keluar dari akun ini.',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Keluar', style: 'destructive', onPress: () => signOut() },
+      ],
+    );
   }
 
   return (
@@ -76,8 +80,10 @@ export default function ProfileScreen() {
             <Text style={styles.avatarText}>{initial}</Text>
           </View>
           <View style={styles.profileInfo}>
-            <Text style={styles.email} numberOfLines={1}>{email}</Text>
-            {createdAt ? (
+            <Text style={styles.email} numberOfLines={1}>{isGuest ? 'Mode Tamu' : email}</Text>
+            {isGuest ? (
+              <Text style={styles.member}>Data tersimpan di HP ini</Text>
+            ) : createdAt ? (
               <Text style={styles.member}>Bergabung {formatDateShort(createdAt)}</Text>
             ) : null}
           </View>
@@ -90,6 +96,20 @@ export default function ProfileScreen() {
           <Stat label="Kategori" value={counts.categories} colors={colors} />
         </View>
 
+        {/* Upgrade CTA — hanya untuk tamu */}
+        {isGuest ? (
+          <Pressable style={styles.upgradeCard} onPress={() => router.push('/sign-in')}>
+            <View style={styles.upgradeIcon}>
+              <Feather name="cloud" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.upgradeTitle}>Cadangkan & multi-device</Text>
+              <Text style={styles.upgradeText}>Daftar atau masuk untuk simpan ke cloud.</Text>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.muted} />
+          </Pressable>
+        ) : null}
+
         {/* Menu */}
         <View style={styles.menu}>
           <MenuItem
@@ -98,18 +118,22 @@ export default function ProfileScreen() {
             onPress={() => router.push('/categories')}
             colors={colors}
           />
-          <View style={styles.menuDivider} />
-          <MenuItem
-            icon="lock"
-            label="Ganti Password"
-            onPress={() => setPwVisible(true)}
-            colors={colors}
-          />
+          {!isGuest ? (
+            <>
+              <View style={styles.menuDivider} />
+              <MenuItem
+                icon="lock"
+                label="Ganti Password"
+                onPress={() => setPwVisible(true)}
+                colors={colors}
+              />
+            </>
+          ) : null}
         </View>
 
         <Pressable style={styles.signOutBtn} onPress={confirmSignOut}>
           <Feather name="log-out" size={16} color={colors.danger} />
-          <Text style={styles.signOutText}>Keluar dari akun</Text>
+          <Text style={styles.signOutText}>{isGuest ? 'Keluar dari mode tamu' : 'Keluar dari akun'}</Text>
         </Pressable>
 
         <Text style={styles.version}>v{version}</Text>
@@ -333,6 +357,26 @@ function getStyles(c: AppColors) {
     },
     signOutText: { color: c.danger, fontSize: 15, fontWeight: '700', fontFamily: F.b },
     version: { textAlign: 'center', color: c.muted, fontSize: 12, fontFamily: F.r },
+    upgradeCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: c.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: c.primary,
+      padding: 16,
+    },
+    upgradeIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 10,
+      backgroundColor: c.surface,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    upgradeTitle: { fontSize: 14, fontWeight: '700', color: c.text, fontFamily: F.b },
+    upgradeText: { fontSize: 12, color: c.muted, marginTop: 2, fontFamily: F.r },
 
     modalOverlay: {
       flex: 1,

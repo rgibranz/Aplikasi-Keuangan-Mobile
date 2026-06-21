@@ -65,7 +65,7 @@ export default function Home() {
   const { income, expense } = monthlyTotals(transactions, now);
   const recent = transactions.slice(0, 5);
   const email = session?.user.email ?? '';
-  const firstName = email.split('@')[0];
+  const firstName = email ? email.split('@')[0] : 'Tamu';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
