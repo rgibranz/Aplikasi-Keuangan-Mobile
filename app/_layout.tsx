@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { ActivityIndicator, AppState, StyleSheet, View } from 'react-native';
-import { Slot, useRouter, useSegments } from 'expo-router';
+import { ActivityIndicator, AppState, Platform, StyleSheet, View } from 'react-native';
+import { Slot, router, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../lib/auth';
@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { AppThemeProvider, useThemeColors, useColorMode } from '../lib/ThemeProvider';
 import { useSyncTriggers } from '../lib/sync/triggers';
 import { updateWidgetsSoon } from '../lib/widget/snapshot';
+import { rescheduleStaleTemplates } from '../lib/recurring';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { useFonts, IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold, IBMPlexMono_700Bold } from '@expo-google-fonts/ibm-plex-mono';
 import * as Notifications from 'expo-notifications';
@@ -65,15 +66,56 @@ function RootNavigator() {
 function AppLayout() {
   useEffect(() => {
     updateWidgetsSoon(); // seed snapshot widget saat app dibuka
-    const sub = AppState.addEventListener('change', (state) => {
+    void rescheduleStaleTemplates();
+
+    if (Platform.OS === 'android') {
+      void Notifications.setNotificationChannelAsync('recurring', {
+        name: 'Transaksi Rutin',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+      });
+    }
+
+    const appStateSub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         supabase.auth.startAutoRefresh();
         updateWidgetsSoon();
+        void rescheduleStaleTemplates();
       } else {
         supabase.auth.stopAutoRefresh();
       }
     });
-    return () => sub.remove();
+
+    const notifSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as {
+        templateId?: string;
+        transactionType?: string;
+        walletId?: string;
+        categoryId?: string;
+        destinationWalletId?: string | null;
+        amount?: number;
+        notes?: string | null;
+      };
+      if (data?.templateId) {
+        router.push({
+          pathname: '/(app)/transaction-form',
+          params: {
+            templateId: data.templateId,
+            prefillType: data.transactionType ?? '',
+            prefillWalletId: data.walletId ?? '',
+            prefillCategoryId: data.categoryId ?? '',
+            prefillDestWalletId: data.destinationWalletId ?? '',
+            prefillAmount: String(data.amount ?? 0),
+            prefillNotes: data.notes ?? '',
+          },
+        });
+      }
+    });
+
+    return () => {
+      appStateSub.remove();
+      notifSub.remove();
+    };
   }, []);
 
   return (
