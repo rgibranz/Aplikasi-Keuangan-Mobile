@@ -10,6 +10,17 @@ import { useSyncTriggers } from '../lib/sync/triggers';
 import { updateWidgetsSoon } from '../lib/widget/snapshot';
 import { OfflineBanner } from '../components/OfflineBanner';
 import { useFonts, IBMPlexMono_400Regular, IBMPlexMono_500Medium, IBMPlexMono_600SemiBold, IBMPlexMono_700Bold } from '@expo-google-fonts/ibm-plex-mono';
+import * as Notifications from 'expo-notifications';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 function RootNavigator() {
   const { session, isGuest, isLoading } = useAuth();
