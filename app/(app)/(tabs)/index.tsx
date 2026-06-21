@@ -17,7 +17,7 @@ import { getCategories } from '../../../lib/categories';
 import { getTransactions } from '../../../lib/transactions';
 import { formatRupiah, monthYearLabel } from '../../../lib/format';
 import { monthlyTotals } from '../../../lib/stats';
-import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
+import { useThemeColors, type AppColors, F, useBalanceVisible } from '../../../lib/ThemeProvider';
 import { useRefreshOnSync } from '../../../lib/sync';
 import { TransactionItem } from '../../../components/TransactionItem';
 import type { Category, Transaction, Wallet } from '../../../lib/types';
@@ -26,6 +26,7 @@ export default function Home() {
   const { session, signOut } = useAuth();
   const router = useRouter();
   const colors = useThemeColors();
+  const { balanceVisible, toggleBalanceVisible } = useBalanceVisible();
   const styles = getStyles(colors);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -74,9 +75,14 @@ export default function Home() {
           <Text style={styles.greeting}>Halo, {firstName} 👋</Text>
           <Text style={styles.date}>{monthYearLabel(now)}</Text>
         </View>
-        <Pressable onPress={signOut} style={styles.signOut}>
-          <Feather name="log-out" size={16} color={colors.muted} />
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={toggleBalanceVisible} style={styles.iconBtn}>
+            <Feather name={balanceVisible ? 'eye' : 'eye-off'} size={16} color={colors.muted} />
+          </Pressable>
+          <Pressable onPress={signOut} style={styles.iconBtn}>
+            <Feather name="log-out" size={16} color={colors.muted} />
+          </Pressable>
+        </View>
       </View>
       <ScrollView
         style={styles.scrollView}
@@ -90,7 +96,9 @@ export default function Home() {
           <View style={styles.balanceDecorL} />
           <View style={styles.balanceDecorR} />
           <Text style={styles.balanceLabel}>Total Saldo</Text>
-          <Text style={styles.balanceValue}>{formatRupiah(total)}</Text>
+          <Text style={styles.balanceValue}>
+            {balanceVisible ? formatRupiah(total) : '••••••'}
+          </Text>
           <Text style={styles.balanceHint}>
             {wallets.length === 0 ? 'Belum ada dompet' : `dari ${wallets.length} dompet`}
           </Text>
@@ -209,7 +217,8 @@ function getStyles(c: AppColors) {
     },
     greeting: { fontSize: 20, fontWeight: '800', color: c.text, fontFamily: F.b },
     date: { fontSize: 13, color: c.muted, marginTop: 2, fontFamily: F.r },
-    signOut: {
+    headerActions: { flexDirection: 'row', gap: 8 },
+    iconBtn: {
       width: 38,
       height: 38,
       borderRadius: 19,
