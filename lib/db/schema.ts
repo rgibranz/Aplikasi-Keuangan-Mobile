@@ -115,10 +115,7 @@ create index if not exists idx_recurring_user on recurring_templates(user_id);
 
 // V4: tambahkan kolom dirty + server_synced ke recurring_templates.
 // default 1 pada dirty → baris lama akan di-push ke Supabase pada sync berikutnya.
-const SCHEMA_V4 = `
-alter table recurring_templates add column if not exists dirty integer not null default 1;
-alter table recurring_templates add column if not exists server_synced integer not null default 0;
-`;
+// V4 split: IF NOT EXISTS tidak didukung SQLite lama di Android — pakai try/catch di migrate().
 
 // Migrasi berbasis PRAGMA user_version (pola resmi expo-sqlite SDK 56).
 export async function migrate(db: SQLiteDatabase): Promise<void> {
@@ -138,7 +135,10 @@ export async function migrate(db: SQLiteDatabase): Promise<void> {
     await db.execAsync('PRAGMA user_version = 3');
   }
   if (version < 4) {
-    await db.execAsync(SCHEMA_V4);
+    // IF NOT EXISTS tidak didukung SQLite < 3.35 (bundled di Android lama).
+    // try/catch: gagal dengan "duplicate column name" kalau kolom sudah ada — aman diabaikan.
+    try { await db.execAsync('alter table recurring_templates add column dirty integer not null default 1'); } catch {}
+    try { await db.execAsync('alter table recurring_templates add column server_synced integer not null default 0'); } catch {}
     await db.execAsync('PRAGMA user_version = 4');
   }
 }

@@ -63,11 +63,12 @@ export function computeNextDueAt(
       d.setDate(d.getDate() + 7);
       break;
     case 'monthly': {
-      d.setMonth(d.getMonth() + 1);
-      if (dayOfMonth) {
-        const maxDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
-        d.setDate(Math.min(dayOfMonth, maxDay));
-      }
+      // Hitung tahun/bulan target tanpa overflow JS Date (misal Jan 31 → Feb 31 → Mar 3).
+      const yr = d.getMonth() === 11 ? d.getFullYear() + 1 : d.getFullYear();
+      const mo = (d.getMonth() + 1) % 12;
+      const day = dayOfMonth ?? d.getDate();
+      const maxDay = new Date(yr, mo + 1, 0).getDate();
+      d.setFullYear(yr, mo, Math.min(day, maxDay));
       break;
     }
     case 'yearly':

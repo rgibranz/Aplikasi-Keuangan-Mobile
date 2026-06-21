@@ -72,7 +72,6 @@ function AppLayout() {
       void Notifications.setNotificationChannelAsync('recurring', {
         name: 'Transaksi Rutin',
         importance: Notifications.AndroidImportance.HIGH,
-        sound: 'default',
       });
     }
 
