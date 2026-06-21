@@ -1,16 +1,21 @@
-import { supabase } from '../supabase';
 import { guestUserId } from '../guest';
 
-// user_id "aktif" untuk operasi data lokal:
-//   - kalau ada sesi Supabase asli -> id user itu (prioritas; menang saat transisi login)
-//   - kalau tidak, tapi mode tamu aktif -> id tamu lokal
-//   - kalau tidak keduanya -> null (belum login & bukan tamu)
-// getSession() membaca sesi tersimpan secara LOKAL, tetap jalan walau offline.
+// User id sesi yang DI-CACHE di memori, di-set oleh AuthProvider tiap sesi
+// berubah (login/logout/refresh). Dipakai di JALUR PANAS (baca/tulis lokal).
+//
+// Penting untuk performa offline-first: JANGAN panggil supabase.auth.getSession()
+// di sini — getSession bisa lambat / nge-block saat refresh token atau internet
+// lambat (rebutan lock dengan auto-refresh), sehingga tulis lokal yang harusnya
+// instan jadi ikut lambat. Token refresh tidak mengubah user.id, jadi cache aman.
+let cachedSessionUserId: string | null = null;
 
+export function setSessionUserId(id: string | null): void {
+  cachedSessionUserId = id;
+}
+
+// Prioritas sesi asli; kalau tidak ada, pakai id tamu (mode tamu).
 export async function currentUserIdOrNull(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  if (data.session?.user.id) return data.session.user.id;
-  return guestUserId();
+  return cachedSessionUserId ?? guestUserId();
 }
 
 export async function currentUserId(): Promise<string> {

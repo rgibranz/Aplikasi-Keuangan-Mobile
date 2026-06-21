@@ -17,6 +17,7 @@ import {
   setPendingMigrationEmail,
 } from './guest';
 import { syncNow } from './sync';
+import { setSessionUserId } from './db/user';
 
 type SignResult = { error: string | null };
 
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setIsGuest(isGuestActive());
       const { data } = await supabase.auth.getSession();
       if (!mounted) return;
+      setSessionUserId(data.session?.user.id ?? null);
       setSession(data.session);
       setIsLoading(false);
     })();
@@ -66,6 +68,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     // Pantau perubahan auth: login, logout, refresh token.
     const { data: listener } = supabase.auth.onAuthStateChange(
       async (_event, newSession) => {
+        setSessionUserId(newSession?.user.id ?? null);
         setSession(newSession);
 
         if (newSession) {
