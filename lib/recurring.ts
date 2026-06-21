@@ -3,6 +3,7 @@ import { getDb } from './db';
 import { currentUserId, currentUserIdOrNull } from './db/user';
 import { uuidv4 } from './db/uuid';
 import { nowIso } from './db/time';
+import { syncSoon } from './sync';
 
 export type Recurrence = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
@@ -194,11 +195,12 @@ export async function saveRecurringTemplate(input: SaveRecurringTemplateInput): 
     await db.runAsync(
       `update recurring_templates set label=?,wallet_id=?,destination_wallet_id=?,category_id=?,
        transaction_type=?,amount=?,notes=?,recurrence=?,day_of_month=?,time_hour=?,time_minute=?,
-       next_due_at=?,notification_id=?,is_active=?,updated_at=? where id=?`,
+       next_due_at=?,notification_id=?,is_active=?,updated_at=?,dirty=1 where id=?`,
       [input.label, input.wallet_id, input.destination_wallet_id, input.category_id,
        input.transaction_type, input.amount, input.notes, input.recurrence, input.day_of_month,
        input.time_hour, input.time_minute, nextDueAt.toISOString(), notifId, input.is_active ? 1 : 0, ts, input.id],
     );
+    syncSoon();
   } else {
     const uid = await currentUserId();
     const id = uuidv4();
@@ -215,12 +217,13 @@ export async function saveRecurringTemplate(input: SaveRecurringTemplateInput): 
       `insert into recurring_templates
        (id,user_id,label,wallet_id,destination_wallet_id,category_id,transaction_type,
         amount,notes,recurrence,day_of_month,time_hour,time_minute,
-        next_due_at,notification_id,is_active,created_at,updated_at)
-       values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        next_due_at,notification_id,is_active,created_at,updated_at,dirty,server_synced)
+       values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,1,0)`,
       [id, uid, input.label, input.wallet_id, input.destination_wallet_id, input.category_id,
        input.transaction_type, input.amount, input.notes, input.recurrence, input.day_of_month,
        input.time_hour, input.time_minute, nextDueAt.toISOString(), notifId, input.is_active ? 1 : 0, ts, ts],
     );
+    syncSoon();
   }
 }
 
@@ -230,9 +233,10 @@ export async function deleteRecurringTemplate(id: string): Promise<void> {
   const db = await getDb();
   const ts = nowIso();
   await db.runAsync(
-    'update recurring_templates set deleted_at=?,updated_at=? where id=?',
+    'update recurring_templates set deleted_at=?,updated_at=?,dirty=1 where id=?',
     [ts, ts, id],
   );
+  syncSoon();
 }
 
 export async function toggleTemplateActive(id: string, isActive: boolean): Promise<void> {
@@ -242,17 +246,18 @@ export async function toggleTemplateActive(id: string, isActive: boolean): Promi
   if (!isActive) {
     await cancelNotif(t.notification_id);
     await db.runAsync(
-      'update recurring_templates set is_active=0,notification_id=null,updated_at=? where id=?',
+      'update recurring_templates set is_active=0,notification_id=null,updated_at=?,dirty=1 where id=?',
       [ts, id],
     );
   } else {
     const nextDueAt = computeFirstDueAt(t.recurrence, new Date(), t.time_hour, t.time_minute, t.day_of_month);
     const notifId = await scheduleNotif({ ...t, next_due_at: nextDueAt.toISOString() });
     await db.runAsync(
-      'update recurring_templates set is_active=1,next_due_at=?,notification_id=?,updated_at=? where id=?',
+      'update recurring_templates set is_active=1,next_due_at=?,notification_id=?,updated_at=?,dirty=1 where id=?',
       [nextDueAt.toISOString(), notifId, ts, id],
     );
   }
+  syncSoon();
 }
 
 export async function rescheduleAfterConfirm(templateId: string): Promise<void> {
@@ -264,9 +269,10 @@ export async function rescheduleAfterConfirm(templateId: string): Promise<void> 
   const db = await getDb();
   const ts = nowIso();
   await db.runAsync(
-    'update recurring_templates set next_due_at=?,notification_id=?,updated_at=? where id=?',
+    'update recurring_templates set next_due_at=?,notification_id=?,updated_at=?,dirty=1 where id=?',
     [nextDueAt.toISOString(), notifId, ts, t.id],
   );
+  syncSoon();
 }
 
 // Dipanggil saat app kembali foreground. Kalau user dismiss notif tanpa tap,
@@ -290,8 +296,9 @@ export async function rescheduleStaleTemplates(): Promise<void> {
     const notifId = await scheduleNotif({ ...t, next_due_at: nextDueAt.toISOString() });
     const ts = nowIso();
     await db.runAsync(
-      'update recurring_templates set next_due_at=?,notification_id=?,updated_at=? where id=?',
+      'update recurring_templates set next_due_at=?,notification_id=?,updated_at=?,dirty=1 where id=?',
       [nextDueAt.toISOString(), notifId, ts, t.id],
     );
   }
+  if (stale.length > 0) syncSoon();
 }

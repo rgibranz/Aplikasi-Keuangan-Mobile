@@ -59,11 +59,12 @@ export async function syncNow(): Promise<void> {
 
 // ── PUSH ─────────────────────────────────────────────────────────────────────
 async function pushAll(db: SQLiteCtx, uid: string): Promise<void> {
-  // Urutan mengikuti foreign key: wallets -> categories -> transactions.
+  // Urutan mengikuti foreign key: wallets -> categories -> transactions -> recurring_templates.
   // Filter user_id = uid: jangan pernah push baris milik tamu / user lain.
   await pushWallets(db, uid);
   await pushCategories(db, uid);
   await pushTransactions(db, uid);
+  await pushRecurringTemplates(db, uid);
 }
 
 interface WalletRow {
@@ -178,8 +179,52 @@ async function pushTransactions(db: SQLiteCtx, uid: string): Promise<void> {
   );
 }
 
+interface RecurringTemplateRow {
+  id: string; user_id: string; label: string; wallet_id: string;
+  destination_wallet_id: string | null; category_id: string; transaction_type: string;
+  amount: number; notes: string | null; recurrence: string; day_of_month: number | null;
+  time_hour: number; time_minute: number; next_due_at: string; notification_id: string | null;
+  is_active: number; created_at: string; updated_at: string; deleted_at: string | null;
+  dirty: number; server_synced: number;
+}
+
+async function pushRecurringTemplates(db: SQLiteCtx, uid: string): Promise<void> {
+  const rows = await db.getAllAsync<RecurringTemplateRow>(
+    'select * from recurring_templates where dirty = 1 and user_id = ?',
+    [uid],
+  );
+  if (rows.length === 0) return;
+  // notification_id adalah device-specific — jangan pernah push nilai aslinya.
+  const payload = rows.map((r) => ({
+    id: r.id, user_id: r.user_id, label: r.label, wallet_id: r.wallet_id,
+    destination_wallet_id: r.destination_wallet_id, category_id: r.category_id,
+    transaction_type: r.transaction_type, amount: r.amount, notes: r.notes,
+    recurrence: r.recurrence, day_of_month: r.day_of_month,
+    time_hour: r.time_hour, time_minute: r.time_minute, next_due_at: r.next_due_at,
+    is_active: r.is_active, created_at: r.created_at, deleted_at: r.deleted_at,
+    notification_id: null,
+  }));
+  const { data, error } = await supabase
+    .from('recurring_templates')
+    .upsert(payload, { onConflict: 'id' })
+    .select('id, updated_at');
+  if (error) throw error;
+  const stamp = new Map<string, string>();
+  for (const d of (data ?? []) as any[]) stamp.set(d.id, d.updated_at);
+  await runExclusive(() =>
+    db.withTransactionAsync(async () => {
+      for (const r of rows) {
+        await db.runAsync(
+          'update recurring_templates set dirty = 0, server_synced = 1, updated_at = ? where id = ?',
+          [stamp.get(r.id) ?? r.updated_at, r.id],
+        );
+      }
+    }),
+  );
+}
+
 // ── PULL ─────────────────────────────────────────────────────────────────────
-const PULL_TABLES = ['wallets', 'categories', 'transactions'] as const;
+const PULL_TABLES = ['wallets', 'categories', 'transactions', 'recurring_templates'] as const;
 type PullTable = (typeof PULL_TABLES)[number];
 
 async function pullAll(db: SQLiteCtx): Promise<boolean> {
@@ -258,6 +303,29 @@ async function mergeRow(db: SQLiteCtx, table: PullTable, r: any): Promise<void> 
          updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, dirty=0, server_synced=1`,
       [r.id, r.user_id, r.category_name, r.category_type, r.icon_name, r.color_hex,
         r.created_at, r.updated_at, r.deleted_at],
+    );
+  } else if (table === 'recurring_templates') {
+    // notification_id adalah device-specific — jangan timpa nilai lokal dengan null dari server.
+    await db.runAsync(
+      `insert into recurring_templates
+         (id,user_id,label,wallet_id,destination_wallet_id,category_id,transaction_type,
+          amount,notes,recurrence,day_of_month,time_hour,time_minute,next_due_at,
+          notification_id,is_active,created_at,updated_at,deleted_at,dirty,server_synced)
+       values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,null,?,?,?,?,0,1)
+       on conflict(id) do update set
+         user_id=excluded.user_id, label=excluded.label, wallet_id=excluded.wallet_id,
+         destination_wallet_id=excluded.destination_wallet_id, category_id=excluded.category_id,
+         transaction_type=excluded.transaction_type, amount=excluded.amount, notes=excluded.notes,
+         recurrence=excluded.recurrence, day_of_month=excluded.day_of_month,
+         time_hour=excluded.time_hour, time_minute=excluded.time_minute,
+         next_due_at=excluded.next_due_at,
+         is_active=excluded.is_active, created_at=excluded.created_at,
+         updated_at=excluded.updated_at, deleted_at=excluded.deleted_at,
+         dirty=0, server_synced=1`,
+      [r.id, r.user_id, r.label, r.wallet_id, r.destination_wallet_id, r.category_id,
+        r.transaction_type, r.amount, r.notes, r.recurrence, r.day_of_month,
+        r.time_hour, r.time_minute, r.next_due_at,
+        r.is_active, r.created_at, r.updated_at, r.deleted_at],
     );
   } else {
     // transactions: tanpa created_at.
