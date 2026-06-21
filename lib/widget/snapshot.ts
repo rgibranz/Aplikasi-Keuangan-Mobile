@@ -55,6 +55,8 @@ export async function buildSnapshot(): Promise<WidgetSnapshot> {
     [uid],
   );
   const total = wallets.reduce((s, w) => s + Number(w.current_balance), 0);
+  const balanceRaw = await AsyncStorage.getItem('@balance_visible');
+  const balanceVisible = balanceRaw !== 'false';
   const wMap: Record<string, string> = {};
   for (const w of wallets) wMap[w.id] = w.wallet_name;
 
@@ -96,7 +98,7 @@ export async function buildSnapshot(): Promise<WidgetSnapshot> {
   });
 
   return {
-    totalSaldoText: formatRupiah(total),
+    totalSaldoText: balanceVisible ? formatRupiah(total) : '••••••',
     dompetText: wallets.length === 0 ? 'Belum ada dompet' : `dari ${wallets.length} dompet`,
     bulanLabel: monthYearLabel(now),
     incomeText: '+' + formatRupiah(income),
