@@ -7,6 +7,8 @@ export default function AppStackLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="categories" />
+      <Stack.Screen name="recurring" />
+      <Stack.Screen name="recurring-form" />
       <Stack.Screen name="transaction-form" options={{ presentation: 'modal' }} />
     </Stack>
   );

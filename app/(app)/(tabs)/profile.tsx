@@ -118,6 +118,13 @@ export default function ProfileScreen() {
             onPress={() => router.push('/categories')}
             colors={colors}
           />
+          <View style={styles.menuDivider} />
+          <MenuItem
+            icon="repeat"
+            label="Transaksi Rutin"
+            onPress={() => router.push('/recurring')}
+            colors={colors}
+          />
           {!isGuest ? (
             <>
               <View style={styles.menuDivider} />
