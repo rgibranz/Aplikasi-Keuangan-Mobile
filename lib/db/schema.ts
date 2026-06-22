@@ -141,4 +141,9 @@ export async function migrate(db: SQLiteDatabase): Promise<void> {
     try { await db.execAsync('alter table recurring_templates add column server_synced integer not null default 0'); } catch {}
     await db.execAsync('PRAGMA user_version = 4');
   }
+  if (version < 5) {
+    // Dompet yang dikecualikan dari total saldo (tabungan/investasi dll).
+    try { await db.execAsync('alter table wallets add column exclude_from_total integer not null default 0'); } catch {}
+    await db.execAsync('PRAGMA user_version = 5');
+  }
 }

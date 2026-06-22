@@ -69,8 +69,9 @@ async function pushAll(db: SQLiteCtx, uid: string): Promise<void> {
 
 interface WalletRow {
   id: string; user_id: string; wallet_name: string; wallet_type: string;
-  current_balance: number; initial_balance: number; created_at: string;
-  updated_at: string; deleted_at: string | null; dirty: number; server_synced: number;
+  current_balance: number; initial_balance: number; exclude_from_total: number;
+  created_at: string; updated_at: string; deleted_at: string | null;
+  dirty: number; server_synced: number;
 }
 
 async function pushWallets(db: SQLiteCtx, uid: string): Promise<void> {
@@ -84,6 +85,7 @@ async function pushWallets(db: SQLiteCtx, uid: string): Promise<void> {
         .insert({
           id: r.id, user_id: r.user_id, wallet_name: r.wallet_name,
           wallet_type: r.wallet_type, current_balance: r.initial_balance,
+          exclude_from_total: r.exclude_from_total === 1,
           created_at: r.created_at, deleted_at: r.deleted_at,
         })
         .select('updated_at')
@@ -97,7 +99,7 @@ async function pushWallets(db: SQLiteCtx, uid: string): Promise<void> {
       // (otoritas server, dijaga trigger).
       const { data, error } = await supabase
         .from('wallets')
-        .update({ wallet_name: r.wallet_name, wallet_type: r.wallet_type, deleted_at: r.deleted_at })
+        .update({ wallet_name: r.wallet_name, wallet_type: r.wallet_type, exclude_from_total: r.exclude_from_total === 1, deleted_at: r.deleted_at })
         .eq('id', r.id)
         .select('updated_at')
         .maybeSingle();
@@ -284,14 +286,15 @@ async function mergeRow(db: SQLiteCtx, table: PullTable, r: any): Promise<void> 
 
   if (table === 'wallets') {
     await db.runAsync(
-      `insert into wallets (id,user_id,wallet_name,wallet_type,current_balance,initial_balance,created_at,updated_at,deleted_at,dirty,server_synced)
-       values (?,?,?,?,?,?,?,?,?,0,1)
+      `insert into wallets (id,user_id,wallet_name,wallet_type,current_balance,initial_balance,exclude_from_total,created_at,updated_at,deleted_at,dirty,server_synced)
+       values (?,?,?,?,?,?,?,?,?,?,0,1)
        on conflict(id) do update set
          user_id=excluded.user_id, wallet_name=excluded.wallet_name, wallet_type=excluded.wallet_type,
-         current_balance=excluded.current_balance, created_at=excluded.created_at,
+         current_balance=excluded.current_balance, exclude_from_total=excluded.exclude_from_total,
+         created_at=excluded.created_at,
          updated_at=excluded.updated_at, deleted_at=excluded.deleted_at, dirty=0, server_synced=1`,
       [r.id, r.user_id, r.wallet_name, r.wallet_type, r.current_balance, r.current_balance,
-        r.created_at, r.updated_at, r.deleted_at],
+        r.exclude_from_total ? 1 : 0, r.created_at, r.updated_at, r.deleted_at],
     );
   } else if (table === 'categories') {
     await db.runAsync(

@@ -10,33 +10,38 @@ import type { TransactionType, Wallet, WalletType } from './types';
 // Supabase di latar belakang (lihat lib/sync). Tanda tangan fungsi sengaja
 // dijaga SAMA seperti versi Supabase agar layar tidak perlu diubah.
 
-const COLS = 'id, user_id, wallet_name, wallet_type, current_balance, created_at';
+const COLS = 'id, user_id, wallet_name, wallet_type, current_balance, exclude_from_total, created_at';
+
+type WalletRow = Omit<Wallet, 'exclude_from_total'> & { exclude_from_total: number };
 
 export async function getWallets(): Promise<Wallet[]> {
   const uid = await currentUserIdOrNull();
   if (!uid) return [];
   const db = await getDb();
-  return db.getAllAsync<Wallet>(
+  const rows = await db.getAllAsync<WalletRow>(
     `select ${COLS} from wallets where user_id = ? and deleted_at is null order by created_at asc`,
     [uid],
   );
+  return rows.map((r) => ({ ...r, exclude_from_total: r.exclude_from_total === 1 }));
 }
 
 export async function createWallet(input: {
   wallet_name: string;
   wallet_type: WalletType;
   current_balance: number;
+  exclude_from_total?: boolean;
 }): Promise<Wallet> {
   const uid = await currentUserId();
   const db = await getDb();
   const now = nowIso();
   const id = uuidv4();
+  const exclude = input.exclude_from_total ? 1 : 0;
   await runExclusive(() =>
     db.runAsync(
       `insert into wallets
-         (id, user_id, wallet_name, wallet_type, current_balance, initial_balance, created_at, updated_at, deleted_at, dirty, server_synced)
-       values (?, ?, ?, ?, ?, ?, ?, ?, null, 1, 0)`,
-      [id, uid, input.wallet_name, input.wallet_type, input.current_balance, input.current_balance, now, now],
+         (id, user_id, wallet_name, wallet_type, current_balance, initial_balance, exclude_from_total, created_at, updated_at, deleted_at, dirty, server_synced)
+       values (?, ?, ?, ?, ?, ?, ?, ?, ?, null, 1, 0)`,
+      [id, uid, input.wallet_name, input.wallet_type, input.current_balance, input.current_balance, exclude, now, now],
     ),
   );
   syncSoon();
@@ -46,8 +51,25 @@ export async function createWallet(input: {
     wallet_name: input.wallet_name,
     wallet_type: input.wallet_type,
     current_balance: input.current_balance,
+    exclude_from_total: !!input.exclude_from_total,
     created_at: now,
   };
+}
+
+// Edit terbatas: hanya saklar exclude_from_total (nama/saldo/jenis tidak diubah di sini).
+export async function updateWallet(
+  id: string,
+  fields: { exclude_from_total: boolean },
+): Promise<void> {
+  const db = await getDb();
+  const now = nowIso();
+  await runExclusive(() =>
+    db.runAsync(
+      'update wallets set exclude_from_total = ?, updated_at = ?, dirty = 1 where id = ?',
+      [fields.exclude_from_total ? 1 : 0, now, id],
+    ),
+  );
+  syncSoon();
 }
 
 // Hapus dompet = cascade SOFT-delete: batalkan efek saldo & tandai-hapus semua

@@ -5,6 +5,7 @@ import {
   FlatList,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -12,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { deleteTransaction, getTransactions } from '../../lib/transactions';
-import { getWallets } from '../../lib/wallets';
+import { getWallets, updateWallet } from '../../lib/wallets';
 import { getCategories } from '../../lib/categories';
 import { formatRupiah, formatDateGroup } from '../../lib/format';
 import { useThemeColors, type AppColors, F } from '../../lib/ThemeProvider';
@@ -101,8 +102,18 @@ export default function WalletDetailScreen() {
     ]);
   }
 
+  async function toggleExclude(value: boolean) {
+    try {
+      await updateWallet(id, { exclude_from_total: value });
+      load();
+    } catch (e) {
+      Alert.alert('Gagal', e instanceof Error ? e.message : 'Error');
+    }
+  }
+
   const typeColor = colorFor(type ?? '');
   const rows = buildRows(transactions);
+  const excluded = walletMap[id]?.exclude_from_total ?? false;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -125,6 +136,20 @@ export default function WalletDetailScreen() {
             <Text style={styles.heroType}>{type}</Text>
             <Text style={styles.heroBalance}>{formatRupiah(Number(balance ?? 0))}</Text>
           </View>
+        </View>
+
+        <View style={styles.toggleRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.toggleLabel}>Hitung ke total saldo</Text>
+            <Text style={styles.toggleHint}>
+              {excluded ? 'Saat ini tidak masuk total.' : 'Saat ini masuk total.'}
+            </Text>
+          </View>
+          <Switch
+            value={!excluded}
+            onValueChange={(v) => toggleExclude(!v)}
+            trackColor={{ true: colors.primary }}
+          />
         </View>
       </View>
 
@@ -221,6 +246,19 @@ function getStyles(c: AppColors) {
     },
     heroType: { fontSize: 13, color: c.muted, fontFamily: F.r },
     heroBalance: { fontSize: 24, fontWeight: '800', color: c.text, fontFamily: F.b },
+    toggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      backgroundColor: c.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 16,
+      marginTop: 10,
+    },
+    toggleLabel: { fontSize: 14, fontWeight: '700', color: c.text, fontFamily: F.b },
+    toggleHint: { fontSize: 12, color: c.muted, marginTop: 2, fontFamily: F.r },
 
     list: { padding: 20, paddingBottom: 40, gap: 10 },
     empty: { alignItems: 'center', paddingTop: 80, gap: 10 },

@@ -51,7 +51,7 @@ export async function buildSnapshot(): Promise<WidgetSnapshot> {
 
   const db = await getDb();
   const wallets = await db.getAllAsync<{ id: string; wallet_name: string; current_balance: number }>(
-    'select id, wallet_name, current_balance from wallets where user_id = ? and deleted_at is null',
+    'select id, wallet_name, current_balance from wallets where user_id = ? and deleted_at is null and exclude_from_total = 0',
     [uid],
   );
   const total = wallets.reduce((s, w) => s + Number(w.current_balance), 0);

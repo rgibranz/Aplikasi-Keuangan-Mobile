@@ -61,7 +61,9 @@ export default function Home() {
   );
   useRefreshOnSync(load);
 
-  const total = wallets.reduce((sum, w) => sum + Number(w.current_balance), 0);
+  const total = wallets
+    .filter((w) => !w.exclude_from_total)
+    .reduce((sum, w) => sum + Number(w.current_balance), 0);
   const now = new Date();
   const { income, expense } = monthlyTotals(transactions, now);
   const recent = transactions.slice(0, 5);

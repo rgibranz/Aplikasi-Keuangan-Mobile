@@ -8,6 +8,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -21,17 +22,24 @@ import { useThemeColors, type AppColors, F, useBalanceVisible } from '../../../l
 import { useRefreshOnSync } from '../../../lib/sync';
 import type { Wallet, WalletType } from '../../../lib/types';
 
-const WALLET_TYPES: WalletType[] = ['Bank', 'E-Wallet', 'Cash'];
+const WALLET_TYPES: WalletType[] = ['Bank', 'E-Wallet', 'Cash', 'Tabungan', 'Investasi'];
+
+// Jenis ini default dikecualikan dari total saldo saat dibuat.
+const DEFAULT_EXCLUDED: WalletType[] = ['Tabungan', 'Investasi'];
 
 function iconFor(type: WalletType): React.ComponentProps<typeof Feather>['name'] {
   if (type === 'Bank') return 'credit-card';
   if (type === 'E-Wallet') return 'smartphone';
+  if (type === 'Tabungan') return 'lock';
+  if (type === 'Investasi') return 'trending-up';
   return 'dollar-sign';
 }
 
 function colorFor(type: WalletType): string {
   if (type === 'Bank') return '#2563EB';
   if (type === 'E-Wallet') return '#7C3AED';
+  if (type === 'Tabungan') return '#0D9488';
+  if (type === 'Investasi') return '#CA8A04';
   return '#15803D';
 }
 
@@ -82,7 +90,9 @@ export default function WalletsScreen() {
     );
   }
 
-  const total = wallets.reduce((s, w) => s + Number(w.current_balance), 0);
+  const total = wallets
+    .filter((w) => !w.exclude_from_total)
+    .reduce((s, w) => s + Number(w.current_balance), 0);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -138,7 +148,14 @@ export default function WalletsScreen() {
                 </View>
                 <View style={styles.cardMid}>
                   <Text style={styles.cardName}>{item.wallet_name}</Text>
-                  <Text style={styles.cardType}>{item.wallet_type}</Text>
+                  <View style={styles.cardSubRow}>
+                    <Text style={styles.cardType}>{item.wallet_type}</Text>
+                    {item.exclude_from_total && (
+                      <View style={styles.excludeBadge}>
+                        <Text style={styles.excludeBadgeText}>tidak dihitung</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
                 <Text style={styles.cardBalance}>
                   {balanceVisible ? formatRupiah(Number(item.current_balance)) : '••••••'}
@@ -185,7 +202,14 @@ function AddWalletModal({
   const [name, setName] = useState('');
   const [type, setType] = useState<WalletType>('Bank');
   const [balance, setBalance] = useState('');
+  const [exclude, setExclude] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Ganti jenis -> ikuti default jenis itu (boleh diubah manual sesudahnya).
+  function pickType(t: WalletType) {
+    setType(t);
+    setExclude(DEFAULT_EXCLUDED.includes(t));
+  }
 
   async function submit() {
     if (!name.trim()) {
@@ -199,10 +223,12 @@ function AddWalletModal({
         wallet_name: name.trim(),
         wallet_type: type,
         current_balance: parsedBalance,
+        exclude_from_total: exclude,
       });
       setName('');
       setType('Bank');
       setBalance('');
+      setExclude(false);
       onCreated();
     } catch (e) {
       Alert.alert('Gagal simpan', e instanceof Error ? e.message : 'Error');
@@ -240,7 +266,7 @@ function AddWalletModal({
             {WALLET_TYPES.map((t) => (
               <Pressable
                 key={t}
-                onPress={() => setType(t)}
+                onPress={() => pickType(t)}
                 style={[styles.typeChip, type === t && styles.typeChipActive]}
               >
                 <Text
@@ -264,6 +290,20 @@ function AddWalletModal({
             value={balance}
             onChangeText={setBalance}
           />
+
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.switchLabel}>Jangan hitung ke total saldo</Text>
+              <Text style={styles.switchHint}>
+                Dompet tetap tampil, tapi tidak masuk total.
+              </Text>
+            </View>
+            <Switch
+              value={exclude}
+              onValueChange={setExclude}
+              trackColor={{ true: colors.primary }}
+            />
+          </View>
 
           <View style={styles.modalActions}>
             <Pressable
@@ -335,7 +375,17 @@ function getStyles(c: AppColors) {
     },
     cardMid: { flex: 1 },
     cardName: { fontSize: 15, fontWeight: '700', color: c.text, fontFamily: F.b },
-    cardType: { fontSize: 12, color: c.muted, marginTop: 2, fontFamily: F.r },
+    cardSubRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
+    cardType: { fontSize: 12, color: c.muted, fontFamily: F.r },
+    excludeBadge: {
+      backgroundColor: c.surface,
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 6,
+      paddingHorizontal: 6,
+      paddingVertical: 1,
+    },
+    excludeBadgeText: { fontSize: 10, color: c.muted, fontFamily: F.sb },
     cardBalance: { fontSize: 15, fontWeight: '800', color: c.text, fontFamily: F.b },
     hint: { textAlign: 'center', color: c.muted, fontSize: 12, marginTop: 14, fontFamily: F.r },
     fab: {
@@ -387,10 +437,12 @@ function getStyles(c: AppColors) {
       color: c.text,
       fontFamily: F.r,
     },
-    typeRow: { flexDirection: 'row', gap: 10 },
+    typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
     typeChip: {
-      flex: 1,
+      flexGrow: 1,
+      flexBasis: '28%',
       paddingVertical: 12,
+      paddingHorizontal: 8,
       borderRadius: 12,
       borderWidth: 1.5,
       borderColor: c.border,
@@ -400,6 +452,14 @@ function getStyles(c: AppColors) {
     typeChipActive: { backgroundColor: c.primary, borderColor: c.primary },
     typeChipText: { fontSize: 14, fontWeight: '600', color: c.text, fontFamily: F.sb },
     typeChipTextActive: { color: '#fff', fontFamily: F.sb },
+    switchRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginTop: 18,
+    },
+    switchLabel: { fontSize: 14, fontWeight: '600', color: c.text, fontFamily: F.sb },
+    switchHint: { fontSize: 12, color: c.muted, marginTop: 2, fontFamily: F.r },
     modalActions: { flexDirection: 'row', gap: 12, marginTop: 26 },
     modalBtn: { flex: 1, paddingVertical: 15, borderRadius: 12, alignItems: 'center' },
     modalCancel: { backgroundColor: c.surface, borderWidth: 1, borderColor: c.border },

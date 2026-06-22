@@ -1,7 +1,7 @@
 // Tipe data yang mencerminkan tabel di Supabase.
 // Nanti bisa di-generate otomatis pakai Supabase CLI; untuk sekarang ditulis manual.
 
-export type WalletType = 'Bank' | 'E-Wallet' | 'Cash';
+export type WalletType = 'Bank' | 'E-Wallet' | 'Cash' | 'Tabungan' | 'Investasi';
 export type TransactionType = 'Income' | 'Expense' | 'Transfer';
 
 export interface Wallet {
@@ -10,6 +10,7 @@ export interface Wallet {
   wallet_name: string;
   wallet_type: WalletType;
   current_balance: number;
+  exclude_from_total: boolean;
   created_at: string;
 }
 
