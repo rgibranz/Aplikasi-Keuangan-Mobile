@@ -42,6 +42,13 @@ const CATEGORY_TEMPLATES: TemplateCategory[] = [
   { name: 'Kesehatan',      icon: '💊', color: '#DC2626', type: 'Expense' },
   { name: 'Rokok',          icon: '🚬', color: '#475569', type: 'Expense' },
   { name: 'Lainnya',        icon: '📦', color: '#475569', type: 'Expense' },
+  { name: 'Gaji',           icon: '💼', color: '#059669', type: 'Income' },
+  { name: 'Bonus',          icon: '🎁', color: '#D97706', type: 'Income' },
+  { name: 'Freelance',      icon: '💻', color: '#2563EB', type: 'Income' },
+  { name: 'Usaha / Jualan', icon: '🏪', color: '#7C3AED', type: 'Income' },
+  { name: 'Investasi',      icon: '📈', color: '#0891B2', type: 'Income' },
+  { name: 'Hadiah',         icon: '🧧', color: '#DC2626', type: 'Income' },
+  { name: 'Lainnya',        icon: '📦', color: '#475569', type: 'Income' },
 ];
 
 const EMOJI_PRESETS = [
