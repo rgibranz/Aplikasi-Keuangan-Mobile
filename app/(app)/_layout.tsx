@@ -9,6 +9,7 @@ export default function AppStackLayout() {
       <Stack.Screen name="categories" />
       <Stack.Screen name="recurring" />
       <Stack.Screen name="recurring-form" />
+      <Stack.Screen name="changelog" />
       <Stack.Screen name="transaction-form" options={{ presentation: 'modal' }} />
     </Stack>
   );

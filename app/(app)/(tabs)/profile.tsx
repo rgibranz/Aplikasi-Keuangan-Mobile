@@ -136,6 +136,13 @@ export default function ProfileScreen() {
               />
             </>
           ) : null}
+          <View style={styles.menuDivider} />
+          <MenuItem
+            icon="clock"
+            label="Riwayat Perubahan"
+            onPress={() => router.push('/changelog')}
+            colors={colors}
+          />
         </View>
 
         <Pressable style={styles.signOutBtn} onPress={confirmSignOut}>
