@@ -63,3 +63,28 @@ export async function deleteCategory(id: string): Promise<void> {
   );
   syncSoon();
 }
+
+// Kategori bawaan untuk transaksi penyesuaian saldo. Dibuat sekali per tipe
+// (Income & Expense terpisah karena kategori bertipe). Idempoten: cari dulu.
+const ADJUSTMENT_CATEGORY_NAME = 'Penyesuaian Saldo';
+
+export async function findOrCreateAdjustmentCategory(
+  type: 'Income' | 'Expense',
+): Promise<string> {
+  const uid = await currentUserId();
+  const db = await getDb();
+  const existing = await db.getFirstAsync<{ id: string }>(
+    `select id from categories
+       where user_id = ? and category_type = ? and category_name = ? and deleted_at is null
+       limit 1`,
+    [uid, type, ADJUSTMENT_CATEGORY_NAME],
+  );
+  if (existing) return existing.id;
+  const created = await createCategory({
+    category_name: ADJUSTMENT_CATEGORY_NAME,
+    category_type: type,
+    icon_name: 'sliders',
+    color_hex: '#94A3B8',
+  });
+  return created.id;
+}

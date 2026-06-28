@@ -5,6 +5,9 @@ import { nowIso } from './db/time';
 import { applyEffect, type TxEffect } from './db/balances';
 import { syncSoon } from './sync';
 import type { Transaction, TransactionType } from './types';
+import { computeAdjustment } from './reconcile';
+import { findOrCreateAdjustmentCategory } from './categories';
+import { getWallets } from './wallets';
 
 export type TransactionInput = {
   transaction_type: TransactionType;
@@ -106,4 +109,35 @@ export async function deleteTransaction(id: string): Promise<void> {
     }),
   );
   syncSoon();
+}
+
+export type ReconcileResult =
+  | { adjusted: false }
+  | { adjusted: true; type: 'Income' | 'Expense'; amount: number };
+
+// Sesuaikan saldo dompet ke nilai nyata: hitung selisih, lalu catat sebagai
+// transaksi Income/Expense biasa (saldo & sync terurus oleh createTransaction).
+// JANGAN sentuh current_balance langsung — itu otoritas trigger server.
+export async function reconcileWallet(
+  walletId: string,
+  actualBalance: number,
+): Promise<ReconcileResult> {
+  const wallets = await getWallets();
+  const wallet = wallets.find((w) => w.id === walletId);
+  if (!wallet) throw new Error('Dompet tidak ditemukan.');
+
+  const adj = computeAdjustment(actualBalance, wallet.current_balance);
+  if (!adj) return { adjusted: false };
+
+  const categoryId = await findOrCreateAdjustmentCategory(adj.type);
+  await createTransaction({
+    transaction_type: adj.type,
+    amount: adj.amount,
+    wallet_id: walletId,
+    destination_wallet_id: null,
+    category_id: categoryId,
+    notes: 'Penyesuaian saldo',
+    transaction_date: nowIso(),
+  });
+  return { adjusted: true, type: adj.type, amount: adj.amount };
 }
