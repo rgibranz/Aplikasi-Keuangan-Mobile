@@ -3,16 +3,18 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Pressable,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import { deleteTransaction, getTransactions } from '../../lib/transactions';
+import { deleteTransaction, getTransactions, reconcileWallet } from '../../lib/transactions';
 import { getWallets, updateWallet } from '../../lib/wallets';
 import { getCategories } from '../../lib/categories';
 import { formatRupiah, formatDateGroup } from '../../lib/format';
@@ -62,6 +64,10 @@ export default function WalletDetailScreen() {
   const [catMap, setCatMap] = useState<Record<string, Category>>({});
   const [loading, setLoading] = useState(true);
 
+  const [reconcileOpen, setReconcileOpen] = useState(false);
+  const [reconcileInput, setReconcileInput] = useState('');
+  const [reconciling, setReconciling] = useState(false);
+
   const load = useCallback(async () => {
     try {
       const [txAll, wallets, cats] = await Promise.all([
@@ -100,6 +106,40 @@ export default function WalletDetailScreen() {
         },
       },
     ]);
+  }
+
+  function openReconcile() {
+    const current = walletMap[id]?.current_balance ?? Number(balance ?? 0);
+    setReconcileInput(String(Math.round(current)));
+    setReconcileOpen(true);
+  }
+
+  async function submitReconcile() {
+    const actual = Number(reconcileInput);
+    if (!reconcileInput.trim() || Number.isNaN(actual)) {
+      Alert.alert('Angka tidak valid', 'Masukkan saldo dompet yang sebenarnya.');
+      return;
+    }
+    setReconciling(true);
+    try {
+      const res = await reconcileWallet(id, actual);
+      setReconcileOpen(false);
+      await load();
+      if (!res.adjusted) {
+        Alert.alert('Sudah cocok', 'Saldo sudah sesuai, tidak ada yang diubah.');
+      } else {
+        const sign = res.type === 'Income' ? '+' : '−';
+        const label = res.type === 'Income' ? 'pemasukan' : 'pengeluaran';
+        Alert.alert(
+          'Saldo disesuaikan',
+          `${sign}${formatRupiah(res.amount)} dicatat sebagai ${label}.`,
+        );
+      }
+    } catch (e) {
+      Alert.alert('Gagal menyesuaikan', e instanceof Error ? e.message : 'Error');
+    } finally {
+      setReconciling(false);
+    }
   }
 
   async function toggleExclude(value: boolean) {
@@ -151,6 +191,11 @@ export default function WalletDetailScreen() {
             trackColor={{ true: colors.primary }}
           />
         </View>
+
+        <Pressable style={styles.reconcileBtn} onPress={openReconcile}>
+          <Feather name="sliders" size={16} color={colors.primary} />
+          <Text style={styles.reconcileBtnText}>Sesuaikan saldo</Text>
+        </Pressable>
       </View>
 
       {/* Transaction list */}
@@ -191,6 +236,49 @@ export default function WalletDetailScreen() {
           />
         )}
       </View>
+
+      <Modal
+        visible={reconcileOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setReconcileOpen(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Sesuaikan saldo</Text>
+            <Text style={styles.modalHint}>
+              Berapa saldo {name} yang sebenarnya sekarang?
+            </Text>
+            <TextInput
+              style={styles.modalInput}
+              value={reconcileInput}
+              onChangeText={setReconcileInput}
+              keyboardType="numeric"
+              placeholder="0"
+              placeholderTextColor={colors.muted}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnGhost]}
+                onPress={() => setReconcileOpen(false)}
+                disabled={reconciling}
+              >
+                <Text style={styles.modalBtnGhostText}>Batal</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnPrimary]}
+                onPress={submitReconcile}
+                disabled={reconciling}
+              >
+                <Text style={styles.modalBtnPrimaryText}>
+                  {reconciling ? 'Menyimpan…' : 'Sesuaikan'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -280,5 +368,55 @@ function getStyles(c: AppColors) {
       letterSpacing: 0.5,
       fontFamily: F.b,
     },
+
+    reconcileBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      backgroundColor: c.card,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 14,
+      marginTop: 10,
+    },
+    reconcileBtnText: { fontSize: 14, fontWeight: '700', color: c.primary, fontFamily: F.b },
+
+    modalBackdrop: {
+      flex: 1,
+      backgroundColor: '#00000088',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: 24,
+    },
+    modalCard: {
+      width: '100%',
+      backgroundColor: c.card,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: c.border,
+      padding: 20,
+      gap: 10,
+    },
+    modalTitle: { fontSize: 17, fontWeight: '800', color: c.text, fontFamily: F.b },
+    modalHint: { fontSize: 13, color: c.muted, fontFamily: F.r },
+    modalInput: {
+      borderWidth: 1,
+      borderColor: c.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 18,
+      color: c.text,
+      fontFamily: F.b,
+      marginTop: 4,
+    },
+    modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
+    modalBtn: { flex: 1, borderRadius: 12, paddingVertical: 12, alignItems: 'center' },
+    modalBtnGhost: { backgroundColor: c.background, borderWidth: 1, borderColor: c.border },
+    modalBtnGhostText: { fontSize: 14, fontWeight: '700', color: c.text, fontFamily: F.b },
+    modalBtnPrimary: { backgroundColor: c.primary },
+    modalBtnPrimaryText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF', fontFamily: F.b },
   });
 }
