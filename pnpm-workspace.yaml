@@ -2,3 +2,5 @@ nodeLinker: hoisted
 virtualStoreDirMaxLength: 30
 allowBuilds:
   esbuild: true
+patchedDependencies:
+  react-native-gesture-handler: patches/react-native-gesture-handler.patch

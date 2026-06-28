@@ -1,0 +1,47 @@
+diff --git a/android/CMakeLists.txt b/android/CMakeLists.txt
+index ae443541495bc868bc536ca26c9eba214e69dd50..8632ac52ffdad449dc923ead99c3c5a43f51d328 100644
+--- a/android/CMakeLists.txt
++++ b/android/CMakeLists.txt
+@@ -4,22 +4,39 @@ project(GestureHandlerCodegen)
+ set(CMAKE_VERBOSE_MAKEFILE on)
+ set(CMAKE_CXX_STANDARD 20)
+ 
+-file(GLOB_RECURSE rn_gesture_handler_SRCS CONFIGURE_DEPENDS ../shared/shadowNodes/*.cpp)
+-file(GLOB_RECURSE rn_gesture_handler_codegen_SRCS CONFIGURE_DEPENDS ./build/generated/source/codegen/jni/*.cpp)
++# ponytail: Windows 260-char path fix. CMake mirrors each source's absolute path
++# under the object dir; the deep codegen path then exceeds 260 and ninja dies with
++# "Filename longer than 260 characters". Copy the sources into the short relative
++# CMake binary dir so object names stay short. No-op cost off-Windows; drop the
++# copy loop and restore the two GLOBs below if this ever regresses.
++file(GLOB_RECURSE _gh_orig_SRCS CONFIGURE_DEPENDS
++  ../shared/shadowNodes/*.cpp
++  ./build/generated/source/codegen/jni/*.cpp)
++set(_gh_copydir ${CMAKE_CURRENT_BINARY_DIR}/s)
++file(MAKE_DIRECTORY ${_gh_copydir})
++set(rn_gesture_handler_SRCS "")
++foreach(_f ${_gh_orig_SRCS})
++  get_filename_component(_n ${_f} NAME)
++  configure_file(${_f} ${_gh_copydir}/${_n} COPYONLY)
++  list(APPEND rn_gesture_handler_SRCS ${_gh_copydir}/${_n})
++endforeach()
+ 
+ add_library(
+   react_codegen_rngesturehandler_codegen
+   SHARED
+   ${rn_gesture_handler_SRCS}
+-  ${rn_gesture_handler_codegen_SRCS}
+ )
+ 
+ if(ReactAndroid_VERSION_MINOR GREATER_EQUAL 80)
+   target_compile_reactnative_options(react_codegen_rngesturehandler_codegen PRIVATE)
+ endif()
+ 
++# include both the base and the leaf dirs so bare quote-includes in the copied
++# .cpp (e.g. "RNGestureHandlerDetectorShadowNode.h") still resolve.
+ target_include_directories(react_codegen_rngesturehandler_codegen PUBLIC ../shared/shadowNodes)
++target_include_directories(react_codegen_rngesturehandler_codegen PUBLIC ../shared/shadowNodes/react/renderer/components/rngesturehandler_codegen)
+ target_include_directories(react_codegen_rngesturehandler_codegen PUBLIC ./build/generated/source/codegen/jni)
++target_include_directories(react_codegen_rngesturehandler_codegen PUBLIC ./build/generated/source/codegen/jni/react/renderer/components/rngesturehandler_codegen)
+ 
+ target_link_libraries(
+   react_codegen_rngesturehandler_codegen
