@@ -115,11 +115,13 @@ export default function WalletDetailScreen() {
   }
 
   async function submitReconcile() {
-    const actual = Number(reconcileInput);
-    if (!reconcileInput.trim() || Number.isNaN(actual)) {
+    const cleaned = reconcileInput.trim();
+    const digits = cleaned.replace(/[^0-9]/g, '');
+    if (digits === '') {
       Alert.alert('Angka tidak valid', 'Masukkan saldo dompet yang sebenarnya.');
       return;
     }
+    const actual = cleaned.startsWith('-') ? -Number(digits) : Number(digits);
     setReconciling(true);
     try {
       const res = await reconcileWallet(id, actual);
