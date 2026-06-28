@@ -152,6 +152,7 @@ export default function ReportsScreen() {
   );
   const grandTotal = breakdown.reduce((s, b) => s + b.total, 0);
   const maxTotal = breakdown.reduce((m, b) => Math.max(m, b.total), 0);
+  const days = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000) + 1);
 
   function changeRef(delta: number) {
     setRef((r) => stepRef(mode, r, delta));
@@ -231,6 +232,14 @@ export default function ReportsScreen() {
                 <Text style={styles.netLabel}>Selisih</Text>
                 <Text style={[styles.netValue, { color: net >= 0 ? colors.income : colors.danger }]}>
                   {net >= 0 ? '+' : ''}{formatRupiah(net)}
+                </Text>
+              </View>
+              <View style={styles.avgRow}>
+                <Text style={styles.avgLabel}>Rata-rata/hari</Text>
+                <Text style={styles.avgValues}>
+                  <Text style={{ color: colors.income }}>+{formatRupiah(Math.round(income / days))}</Text>
+                  <Text style={{ color: colors.muted }}> | </Text>
+                  <Text style={{ color: colors.danger }}>-{formatRupiah(Math.round(expense / days))}</Text>
                 </Text>
               </View>
             </View>
@@ -432,6 +441,17 @@ function getStyles(c: AppColors) {
     },
     netLabel: { fontSize: 13, fontWeight: '600', color: c.muted, fontFamily: F.sb },
     netValue: { fontSize: 17, fontWeight: '800', fontFamily: F.b },
+    avgRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 10,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: c.border,
+    },
+    avgLabel: { fontSize: 13, fontWeight: '600', color: c.muted, fontFamily: F.sb },
+    avgValues: { fontSize: 14, fontWeight: '800', fontFamily: F.b },
 
     toggleRow: { flexDirection: 'row', gap: 10 },
     toggleChip: {
