@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -18,7 +18,7 @@ import { getTransactions } from '../../../lib/transactions';
 import { formatRupiah, monthYearLabel } from '../../../lib/format';
 import { monthlyTotals } from '../../../lib/stats';
 import { useThemeColors, type AppColors, F, useBalanceVisible } from '../../../lib/ThemeProvider';
-import { useRefreshOnSync } from '../../../lib/sync';
+import { onSynced } from '../../../lib/sync';
 import { TransactionItem } from '../../../components/TransactionItem';
 import type { Category, Transaction, Wallet } from '../../../lib/types';
 
@@ -59,7 +59,7 @@ export default function Home() {
       load();
     }, [load]),
   );
-  useRefreshOnSync(load);
+  useEffect(() => onSynced(load), [load]);
 
   const total = wallets
     .filter((w) => !w.exclude_from_total)

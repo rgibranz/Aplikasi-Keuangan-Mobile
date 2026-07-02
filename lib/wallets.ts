@@ -1,7 +1,6 @@
+import 'react-native-get-random-values';
 import { getDb, runExclusive } from './db';
 import { currentUserId, currentUserIdOrNull } from './db/user';
-import { uuidv4 } from './db/uuid';
-import { nowIso } from './db/time';
 import { applyEffect } from './db/balances';
 import { syncSoon } from './sync';
 import type { TransactionType, Wallet, WalletType } from './types';
@@ -33,8 +32,8 @@ export async function createWallet(input: {
 }): Promise<Wallet> {
   const uid = await currentUserId();
   const db = await getDb();
-  const now = nowIso();
-  const id = uuidv4();
+  const now = new Date().toISOString();
+    const id = crypto.randomUUID();
   const exclude = input.exclude_from_total ? 1 : 0;
   await runExclusive(() =>
     db.runAsync(
@@ -62,7 +61,7 @@ export async function updateWallet(
   fields: { exclude_from_total: boolean },
 ): Promise<void> {
   const db = await getDb();
-  const now = nowIso();
+  const now = new Date().toISOString();
   await runExclusive(() =>
     db.runAsync(
       'update wallets set exclude_from_total = ?, updated_at = ?, dirty = 1 where id = ?',
@@ -77,7 +76,7 @@ export async function updateWallet(
 // Pengganti ON DELETE CASCADE server untuk model offline/soft-delete.
 export async function deleteWallet(id: string): Promise<void> {
   const db = await getDb();
-  const now = nowIso();
+  const now = new Date().toISOString();
   await runExclusive(() =>
     db.withTransactionAsync(async () => {
       const txs = await db.getAllAsync<{

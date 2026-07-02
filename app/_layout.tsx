@@ -3,10 +3,11 @@ import { ActivityIndicator, AppState, Platform, StyleSheet, View } from 'react-n
 import { Slot, router, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import NetInfo from '@react-native-community/netinfo';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { AppThemeProvider, useThemeColors, useColorMode } from '../lib/ThemeProvider';
-import { useSyncTriggers } from '../lib/sync/triggers';
+import { syncNow } from '../lib/sync';
 import { updateWidgetsSoon } from '../lib/widget/snapshot';
 import { rescheduleStaleTemplates } from '../lib/recurring';
 import { OfflineBanner } from '../components/OfflineBanner';
@@ -30,7 +31,13 @@ function RootNavigator() {
   const colorMode = useColorMode();
 
   // Sinkronisasi otomatis saat login (hidrasi awal, kembali online, foreground).
-  useSyncTriggers(!!session);
+  useEffect(() => {
+    if (!session) return;
+    void syncNow();
+    const appSub = AppState.addEventListener('change', (s) => { if (s === 'active') void syncNow(); });
+    const netUnsub = NetInfo.addEventListener((s) => { if (s.isConnected) void syncNow(); });
+    return () => { appSub.remove(); netUnsub(); };
+  }, [session]);
 
   useEffect(() => {
     if (isLoading) return;

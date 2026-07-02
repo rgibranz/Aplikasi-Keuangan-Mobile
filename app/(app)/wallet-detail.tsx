@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +19,7 @@ import { getWallets, updateWallet } from '../../lib/wallets';
 import { getCategories } from '../../lib/categories';
 import { formatRupiah, formatDateGroup } from '../../lib/format';
 import { useThemeColors, type AppColors, F } from '../../lib/ThemeProvider';
-import { useRefreshOnSync } from '../../lib/sync';
+import { onSynced } from '../../lib/sync';
 import { TransactionItem } from '../../components/TransactionItem';
 import type { Category, Transaction, Wallet } from '../../lib/types';
 
@@ -88,7 +88,7 @@ export default function WalletDetailScreen() {
   }, [id]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
-  useRefreshOnSync(load);
+  useEffect(() => onSynced(load), [load]);
 
   function confirmDelete(t: Transaction) {
     Alert.alert('Hapus transaksi?', 'Saldo dompet akan disesuaikan otomatis.', [

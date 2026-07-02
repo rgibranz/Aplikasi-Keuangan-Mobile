@@ -1,5 +1,5 @@
+import 'react-native-get-random-values';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { uuidv4 } from './db/uuid';
 import { getDb, runExclusive } from './db';
 
 // ── Mode tamu (lokal saja, tanpa akun) ───────────────────────────────────────
@@ -37,7 +37,7 @@ export function guestUserId(): string | null {
 
 export async function enterGuestMode(): Promise<string> {
   if (!guestId) {
-    guestId = uuidv4();
+    guestId = crypto.randomUUID();
     await AsyncStorage.setItem(K_ID, guestId);
   }
   active = true;

@@ -1,8 +1,7 @@
+import 'react-native-get-random-values';
 import * as Notifications from 'expo-notifications';
 import { getDb } from './db';
 import { currentUserId, currentUserIdOrNull } from './db/user';
-import { uuidv4 } from './db/uuid';
-import { nowIso } from './db/time';
 import { syncSoon } from './sync';
 
 export type Recurrence = 'daily' | 'weekly' | 'monthly' | 'yearly';
@@ -100,28 +99,12 @@ export function computeFirstDueAt(
   return d;
 }
 
-// ponytail: self-check untuk computeNextDueAt — run sekali di __DEV__
-if (__DEV__) {
-  const base = new Date('2026-01-31T00:00:00.000Z');
-  base.setHours(8, 0, 0, 0);
-  const result = computeNextDueAt('monthly', base, 8, 0, 31);
-  // Feb 2026 punya 28 hari, jadi tgl 31 → 28
-  if (result.getDate() !== 28 || result.getMonth() !== 1) {
-    console.warn('[recurring] computeNextDueAt monthly end-of-month FAIL', result.toISOString());
-  }
-}
-
-let _notifPermGranted: boolean | null = null;
-async function hasNotifPerm(): Promise<boolean> {
-  if (_notifPermGranted !== null) return _notifPermGranted;
-  const { status } = await Notifications.requestPermissionsAsync();
-  _notifPermGranted = status === 'granted';
-  return _notifPermGranted;
-}
-
 async function scheduleNotif(
   t: Pick<RecurringTemplate, 'id' | 'label' | 'transaction_type' | 'amount' | 'wallet_id' | 'category_id' | 'destination_wallet_id' | 'notes' | 'next_due_at'>,
 ): Promise<string | null> {
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== 'granted') return null;
+
   const amountText =
     t.amount > 0
       ? `Rp ${Math.round(t.amount).toLocaleString('id-ID')}`
@@ -130,8 +113,6 @@ async function scheduleNotif(
     t.transaction_type === 'Income' ? 'Pemasukan'
     : t.transaction_type === 'Expense' ? 'Pengeluaran'
     : 'Transfer';
-
-  if (!(await hasNotifPerm())) return null;
 
   return Notifications.scheduleNotificationAsync({
     content: {
@@ -181,7 +162,7 @@ export async function getRecurringTemplate(id: string): Promise<RecurringTemplat
 
 export async function saveRecurringTemplate(input: SaveRecurringTemplateInput): Promise<void> {
   const db = await getDb();
-  const ts = nowIso();
+  const ts = new Date().toISOString();
   const nextDueAt = computeFirstDueAt(
     input.recurrence, input.start_date, input.time_hour, input.time_minute, input.day_of_month,
   );
@@ -204,7 +185,7 @@ export async function saveRecurringTemplate(input: SaveRecurringTemplateInput): 
     syncSoon();
   } else {
     const uid = await currentUserId();
-    const id = uuidv4();
+    const id = crypto.randomUUID();
     let notifId: string | null = null;
     if (input.is_active) {
       notifId = await scheduleNotif({
@@ -232,7 +213,7 @@ export async function deleteRecurringTemplate(id: string): Promise<void> {
   const t = await getRecurringTemplate(id);
   await cancelNotif(t.notification_id);
   const db = await getDb();
-  const ts = nowIso();
+  const ts = new Date().toISOString();
   await db.runAsync(
     'update recurring_templates set deleted_at=?,updated_at=?,dirty=1 where id=?',
     [ts, ts, id],
@@ -243,7 +224,7 @@ export async function deleteRecurringTemplate(id: string): Promise<void> {
 export async function toggleTemplateActive(id: string, isActive: boolean): Promise<void> {
   const t = await getRecurringTemplate(id);
   const db = await getDb();
-  const ts = nowIso();
+  const ts = new Date().toISOString();
   if (!isActive) {
     await cancelNotif(t.notification_id);
     await db.runAsync(
@@ -268,7 +249,7 @@ export async function rescheduleAfterConfirm(templateId: string): Promise<void> 
   const nextDueAt = computeNextDueAt(t.recurrence, new Date(t.next_due_at), t.time_hour, t.time_minute, t.day_of_month);
   const notifId = await scheduleNotif({ ...t, next_due_at: nextDueAt.toISOString() });
   const db = await getDb();
-  const ts = nowIso();
+  const ts = new Date().toISOString();
   await db.runAsync(
     'update recurring_templates set next_due_at=?,notification_id=?,updated_at=?,dirty=1 where id=?',
     [nextDueAt.toISOString(), notifId, ts, t.id],
@@ -282,7 +263,7 @@ export async function rescheduleStaleTemplates(): Promise<void> {
   const uid = await currentUserIdOrNull();
   if (!uid) return;
   const db = await getDb();
-  const now = nowIso();
+  const now = new Date().toISOString();
   const stale = await db.getAllAsync<RecurringTemplate>(
     'select * from recurring_templates where user_id=? and is_active=1 and deleted_at is null and next_due_at < ?',
     [uid, now],
@@ -295,7 +276,7 @@ export async function rescheduleStaleTemplates(): Promise<void> {
       nextDueAt = computeNextDueAt(t.recurrence, nextDueAt, t.time_hour, t.time_minute, t.day_of_month);
     }
     const notifId = await scheduleNotif({ ...t, next_due_at: nextDueAt.toISOString() });
-    const ts = nowIso();
+    const ts = new Date().toISOString();
     await db.runAsync(
       'update recurring_templates set next_due_at=?,notification_id=?,updated_at=?,dirty=1 where id=?',
       [nextDueAt.toISOString(), notifId, ts, t.id],

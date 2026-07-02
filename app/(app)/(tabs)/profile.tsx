@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -22,7 +22,7 @@ import { getCategories } from '../../../lib/categories';
 import { getTransactions } from '../../../lib/transactions';
 import { formatDateShort } from '../../../lib/format';
 import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
-import { useRefreshOnSync } from '../../../lib/sync';
+import { onSynced } from '../../../lib/sync';
 
 export default function ProfileScreen() {
   const { session, signOut, updatePassword, isGuest } = useAuth();
@@ -50,7 +50,7 @@ export default function ProfileScreen() {
       load();
     }, [load]),
   );
-  useRefreshOnSync(load);
+  useEffect(() => onSynced(load), [load]);
 
   const email = session?.user.email ?? '';
   const initial = isGuest ? 'T' : email ? email[0].toUpperCase() : '?';

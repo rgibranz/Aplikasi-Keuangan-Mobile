@@ -4,7 +4,6 @@ import { emitSynced } from './bus';
 import { updateWidgetsSoon } from '../widget/snapshot';
 
 export { onSynced } from './bus';
-export { useRefreshOnSync } from './useRefreshOnSync';
 
 // ── State engine ─────────────────────────────────────────────────────────────
 let syncing = false;

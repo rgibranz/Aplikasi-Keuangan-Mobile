@@ -148,13 +148,7 @@ export async function updateAllWidgets(): Promise<void> {
   }
 }
 
-let timer: ReturnType<typeof setTimeout> | null = null;
-// Dipanggil setelah mutasi / sync / foreground. Di-debounce.
-export function updateWidgetsSoon(delayMs = 1500): void {
+export function updateWidgetsSoon(): void {
   if (Platform.OS !== 'android') return;
-  if (timer) clearTimeout(timer);
-  timer = setTimeout(() => {
-    timer = null;
-    void updateAllWidgets();
-  }, delayMs);
+  void updateAllWidgets();
 }

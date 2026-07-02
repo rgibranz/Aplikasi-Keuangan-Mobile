@@ -1,7 +1,6 @@
+import 'react-native-get-random-values';
 import { getDb, runExclusive } from './db';
 import { currentUserId, currentUserIdOrNull } from './db/user';
-import { uuidv4 } from './db/uuid';
-import { nowIso } from './db/time';
 import { applyEffect, type TxEffect } from './db/balances';
 import { syncSoon } from './sync';
 import type { Transaction, TransactionType } from './types';
@@ -49,8 +48,8 @@ export async function getTransaction(id: string): Promise<Transaction> {
 export async function createTransaction(input: TransactionInput): Promise<void> {
   const uid = await currentUserId();
   const db = await getDb();
-  const now = nowIso();
-  const id = uuidv4();
+  const now = new Date().toISOString();
+  const id = crypto.randomUUID();
   await runExclusive(() =>
     db.withTransactionAsync(async () => {
       await db.runAsync(
@@ -68,7 +67,7 @@ export async function createTransaction(input: TransactionInput): Promise<void> 
 
 export async function updateTransaction(id: string, input: TransactionInput): Promise<void> {
   const db = await getDb();
-  const now = nowIso();
+  const now = new Date().toISOString();
   await runExclusive(() =>
     db.withTransactionAsync(async () => {
       const old = await db.getFirstAsync<TxEffect & { deleted_at: string | null }>(
@@ -93,7 +92,7 @@ export async function updateTransaction(id: string, input: TransactionInput): Pr
 
 export async function deleteTransaction(id: string): Promise<void> {
   const db = await getDb();
-  const now = nowIso();
+  const now = new Date().toISOString();
   await runExclusive(() =>
     db.withTransactionAsync(async () => {
       const old = await db.getFirstAsync<TxEffect & { deleted_at: string | null }>(
@@ -137,7 +136,7 @@ export async function reconcileWallet(
     destination_wallet_id: null,
     category_id: categoryId,
     notes: 'Penyesuaian saldo',
-    transaction_date: nowIso(),
+    transaction_date: new Date().toISOString(),
   });
   return { adjusted: true, type: adj.type, amount: adj.amount };
 }

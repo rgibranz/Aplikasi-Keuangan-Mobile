@@ -1,12 +1,10 @@
-// Format angka jadi Rupiah, contoh: 1500000 -> "Rp 1.500.000".
-// Ditulis manual (tanpa Intl) supaya pasti jalan di Hermes/Android.
 export function formatRupiah(value: number): string {
-  const rounded = Math.round(value);
-  const sign = rounded < 0 ? '-' : '';
-  const digits = Math.abs(rounded)
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-  return `${sign}Rp ${digits}`;
+  return Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(value);
 }
 
 const BULAN = [

@@ -1,7 +1,6 @@
+import 'react-native-get-random-values';
 import { getDb, runExclusive } from './db';
 import { currentUserId, currentUserIdOrNull } from './db/user';
-import { uuidv4 } from './db/uuid';
-import { nowIso } from './db/time';
 import { syncSoon } from './sync';
 import type { Category } from './types';
 
@@ -28,8 +27,8 @@ export async function createCategory(input: {
 }): Promise<Category> {
   const uid = await currentUserId();
   const db = await getDb();
-  const now = nowIso();
-  const id = uuidv4();
+  const now = new Date().toISOString();
+    const id = crypto.randomUUID();
   await runExclusive(() =>
     db.runAsync(
       `insert into categories
@@ -54,7 +53,7 @@ export async function createCategory(input: {
 // kategori ter-tombstone ia tak muncul di lookup -> tampil "tanpa kategori".
 export async function deleteCategory(id: string): Promise<void> {
   const db = await getDb();
-  const now = nowIso();
+  const now = new Date().toISOString();
   await runExclusive(() =>
     db.runAsync(
       'update categories set deleted_at = ?, updated_at = ?, dirty = 1 where id = ?',

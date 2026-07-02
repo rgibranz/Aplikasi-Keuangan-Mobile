@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +19,7 @@ import { Feather } from '@expo/vector-icons';
 import { createWallet, deleteWallet, getWallets } from '../../../lib/wallets';
 import { formatRupiah } from '../../../lib/format';
 import { useThemeColors, type AppColors, F, useBalanceVisible } from '../../../lib/ThemeProvider';
-import { useRefreshOnSync } from '../../../lib/sync';
+import { onSynced } from '../../../lib/sync';
 import type { Wallet, WalletType } from '../../../lib/types';
 
 const WALLET_TYPES: WalletType[] = ['Bank', 'E-Wallet', 'Cash', 'Tabungan', 'Investasi'];
@@ -66,7 +66,7 @@ export default function WalletsScreen() {
       load();
     }, [load]),
   );
-  useRefreshOnSync(load);
+  useEffect(() => onSynced(load), [load]);
 
   function confirmDelete(wallet: Wallet) {
     Alert.alert(

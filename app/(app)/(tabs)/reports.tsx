@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   type DimensionValue,
@@ -24,7 +24,7 @@ import {
   type BarPoint,
 } from '../../../lib/stats';
 import { useThemeColors, type AppColors, F } from '../../../lib/ThemeProvider';
-import { useRefreshOnSync } from '../../../lib/sync';
+import { onSynced } from '../../../lib/sync';
 import type { Category, Transaction } from '../../../lib/types';
 
 type PeriodMode = 'Harian' | 'Mingguan' | 'Bulanan' | 'Tahunan';
@@ -134,7 +134,7 @@ export default function ReportsScreen() {
   }, []);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
-  useRefreshOnSync(load);
+  useEffect(() => onSynced(load), [load]);
 
   const { from, to } = useMemo(() => getPeriodBounds(mode, ref), [mode, ref]);
   const { income, expense } = useMemo(
