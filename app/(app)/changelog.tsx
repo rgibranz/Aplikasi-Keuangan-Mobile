@@ -10,6 +10,30 @@ type ChangelogEntry = { version?: string; date: string; title: string; items: st
 
 const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '0.7.5',
+    date: '28 Jun 2026',
+    title: 'Rata-rata harian',
+    items: [
+      'Ringkasan periode kini menampilkan rata-rata pemasukan & pengeluaran per hari.',
+    ],
+  },
+  {
+    version: '0.7.4',
+    date: '28 Jun 2026',
+    title: 'Ukuran aplikasi lebih kecil',
+    items: [
+      'Ukuran file APK dipangkas — unduhan & pemasangan jadi lebih ringan.',
+    ],
+  },
+  {
+    version: '0.7.3',
+    date: '28 Jun 2026',
+    title: 'Sesuaikan saldo',
+    items: [
+      'Tombol "Sesuaikan saldo" di detail dompet — samakan saldo aplikasi dengan saldo nyata, selisihnya dicatat otomatis sebagai penyesuaian.',
+    ],
+  },
+  {
     version: '0.7.0',
     date: '22 Jun 2026',
     title: 'Riwayat perubahan',
